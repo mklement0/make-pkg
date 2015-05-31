@@ -87,7 +87,7 @@ release: _need-ver _need-origin _need-npm-credentials _need-master-branch versio
 	 git add --update . || exit; \
 	 echo '-- Committing...'; \
 	 [[ -z $$(git status --porcelain || echo no) ]] && echo "-- (Nothing to commit.)" || { git commit -m "$$commitMsg" || exit; echo "-- v$$newVer committed."; }; \
-	 git tag -a -m "$$commitMsg" "v$$newVer" || exit; { git tag -f 'stable' || exit; }; \
+	 git tag -f -a -m "$$commitMsg" "v$$newVer" || exit; { git tag -f 'stable' || exit; }; \
 	 echo "-- Tag v$$newVer created."; \
 	 git push origin master || exit; git push -f origin master --tags; \
 	 echo "-- v$$newVer pushed to origin."; \
