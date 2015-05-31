@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+# Arguments:
+#                         isPrivate pkgName     pkgDescr              isGlobal binNames     mainName   supportedOSnames keywords         licenseID
+./.fixtures/create-package n         foo-lib-cli 'foo-lib-cli package' n        'foo-cli'   'foo-lib'  '!win32'         'foo,bar,lib+cli' BSD-3-Clause

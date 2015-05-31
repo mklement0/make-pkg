@@ -1,0 +1,47 @@
+{
+    "name": "foo-lib-cli"
+  , "description": "foo-lib-cli package"
+  , "private": false
+  , "version": "0.0.0"
+  , "os":
+    [
+        "!win32"
+    ]
+  , "preferGlobal": false
+  , "bin":
+    {
+        "foo-cli": "bin/foo-cli"
+    }
+  , "main": "lib/foo-lib.js"
+  , "homepage": "https://github.com/jdoe/foo-lib-cli"
+  , "repository":
+    {
+        "type": "git"
+      , "url": "https://github.com/jdoe/foo-lib-cli.git"
+    }
+  , "bugs":
+    {
+        "url": "https://github.com/jdoe/foo-lib-cli/issues"
+    }
+  , "scripts":
+    {
+        "test": "make test"
+    }
+  , "keywords":
+    [
+        "foo"
+      , "bar"
+      , "lib+cli"
+    ]
+  , "author": "J. Doe <jdoe@example.org> (http://example.org)"
+  , "license": "BSD-3-Clause"
+  , "devDependencies":
+    {
+      "doctoc": "^0.13.0",
+      "json": "^9.0.3",
+      "replace": "^0.3.0",
+      "semver": "^4.2.0",
+      "tap": "^0.6.0",
+      "urchin": "^0.0.5"
+    }
+}

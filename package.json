@@ -1,0 +1,46 @@
+{
+  "name": "make-pkg",
+  "version": "0.1.0",
+  "author": "Michael Klement <http://same2u.net> (mklement0@gmail.com)",
+  "license": "MIT",
+  "description": "Unix CLI for initializing npm package projects and implementing a release and maintenance workflow",
+  "bin": {
+    "make-pkg": "bin/make-pkg"
+  },
+  "preferGlobal": true,
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "homepage": "https://github.com/mklement0/make-pkg",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mklement0/make-pkg.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mklement0/make-pkg/issues"
+  },
+  "scripts": {
+    "test": "make test"
+  },
+  "keywords": [
+    "package",
+    "initialize",
+    "maintain",
+    "workflow",
+    "release",
+    "scaffold",
+    "template"
+  ],
+  "devDependencies": {
+    "doctoc": "^0.13.0",
+    "json": "^9.0.3",
+    "replace": "^0.3.0",
+    "semver": "^4.2.0",
+    "tap": "^0.6.0",
+    "urchin": "^0.0.5"
+  },
+  "dependencies": {
+    "json": "^9.0.3"
+  }
+}

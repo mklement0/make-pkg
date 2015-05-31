@@ -1,0 +1,82 @@
+#!/bin/bash
+
+kTHIS_NAME=$(basename "$BASH_SOURCE")
+kTHIS_DIR=$(dirname "$BASH_SOURCE")
+kTHIS_DIR_NAME=$(cd "$kTHIS_DIR" && basename "$PWD")
+
+unset CDPATH  # to prevent unpredictable `cd` behavior
+
+# Helper function for exiting with error message due to runtime error.
+#   die [errMsg [exitCode]]
+# Default error message states context and indicates that execution is aborted. Default exit code is 1.
+# Prefix for context is always prepended.
+# Note: An error message is *always* printed; if you just want to exit with a specific code silently, use `exit n` directly.
+die() {
+  echo "$kTHIS_NAME: ERROR: ${1:-"ABORTING due to unexpected error."}" 1>&2
+  exit ${2:-1} # Note: If the argument is non-numeric, the shell prints a warning and uses exit code 255.
+}
+
+# Helper function for exiting with error message due to invalid arguments.
+#   dieSyntax [errMsg]
+# Default error message is provided, as is prefix and suffix; exit code is always 2.
+dieSyntax() {
+  echo "$kTHIS_NAME: ARGUMENT ERROR: ${1:-"Invalid argument(s) specified."} Use -h for help." 1>&2
+  exit 2
+}
+
+# Regex for identifying Makefiles of the same type as this package's.
+kMAKEFILE_ID_REGEX='^update-readme:'
+
+# Command-line help.
+if [[ $1 == '--help' || $1 == '-h' ]]; then
+  cat <<EOF
+SYNOPSIS
+  $kTHIS_NAME 
+
+DESCRIPTION
+  Updates Makefiles in this package's parent folder's subtree
+  with the Makefile from this package, assuming:
+
+  - they're not in hidden folders
+  - they're not inside 'node_module' folders
+  - they match a regex that identifies a Makefile as being
+    an older version of this package's:
+       $kMAKEFILE_ID_REGEX
+
+  Note that no attempt is made to compare timestamps.
+
+  You will be prompted for confirmation.
+
+EOF
+    exit 0
+fi
+
+# Make sure that not too many arguments were specified.
+(( $# == 0 )) || dieSyntax "Unexpected argument(s) specified."
+
+# Change to the folder in which this script resides.
+cd "$kTHIS_DIR" || die
+
+echo "== Looking for Makefiles to update, relative to ${PWD/#$HOME/~}..."
+
+# Run the same command twice: 
+#  - the first time to simply ECHO the copy commands that WOULD be performed if confirmed by prompt.
+#  - the second time, if confirmed, to actually perform the copy commands.
+cmdPrefix=( 'echo' '' )
+for i in 0 1; do
+  result=$(find .. ! -path '../'"$kTHIS_DIR_NAME"'/*' ! -path '*/node_modules/*' ! -path '*/.*'  -name 'Makefile' -exec egrep -l '^version:' {} \; | xargs -I % ${cmdPrefix[i]} cp -p ./Makefile %) || die
+  if (( i == 0 )); then
+    [[ -n $result ]] || { die "No matching Makefiles found."; }
+    echo "$result"
+    while (( ! skipPrompt )); do
+      read -p "== PERFORM COPY COMMANDS as stated above? (y/N) " promptInput
+      [[ $promptInput =~ ^[yY]$ ]] && continue 2 # OK
+      [[ $promptInput =~ ^[nN]$ || -z $promptInput ]] && { echo "Aborted." 1>&2; exit 1; }
+      echo "Invalid input; please try again (^C to abort)." 1>&2
+    done
+    break
+  else
+    [[ -n $result ]] && echo $result
+  fi
+done
+echo '== Done.'

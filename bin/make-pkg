@@ -1,0 +1,1326 @@
+#!/usr/bin/env bash
+
+# ---------------
+# Run make-pkg --help for brief usage information; see https://github.com/mklement0/make-pg for more.
+#
+# Note that this utility lists package 'json' as BOTH a runtime AND a development dependency - THIS IS INTENTIONAL, AND MUST BE KEPT:
+# 'json' is this utility's only true *runtime* dependency - it needs that package to run.
+# To manage this utility's own package, several more *development* dependencies exist, and 'json' listed there *as well, by design*, 
+# because the list of development dependencies is also copied to the 'package.json' file of projects created by this utility - and this
+# such 'package.json' files initially have no *runtime* dependencies, but the dev tasks implemented in the 'Makefile' file definitely
+# rely on 'json' as well.
+# `npm install` gives a warning about the seemingly duplicate 'json' entries when run in this utility's package folder, but this can be ignored.
+# ---------------
+
+# ================ BEGIN: Helper functions
+
+# SYNOPSIS
+#   rreadlink symlink
+# DESCRIPTION
+#   Outputs the canonical path of the specified symlink's ultimate target.
+#   If the argument is not a symlink, its own canonical path is output.
+# NOTES
+#   Attempts to use `readlink`, which is found on most modern platforms (notable exception: HP-UX)
+#   If `readlink` is not available, output from `ls -l` is parsed, which is the only POSIX-compliant
+#   way to determine a symlink's target; caveat: if a filename contains literal ' -> ', this will break.
+# THANKS
+#   Gratefully adapted from http://stackoverflow.com/a/1116890/45375
+rreadlink() ( # execute function in a *subshell* to localize the effect of `cd`.
+
+  local target=$1 fname targetDir readlinkexe=$(command -pv readlink) CDPATH= 
+
+  while :; do # Resolve potential symlinks until the ultimate target is found.
+      [[ -L $target || -e $target ]] || { printf '%s\n' "$FUNCNAME: ERROR: '$target' does not exist." >&2; return 1; }
+      builtin cd "$(command -p dirname "$target")" # Change to target dir; necessary for correct resolution of target path.
+      fname=$(command -p basename "$target") # Extract filename.
+      if [[ -L $fname ]]; then
+        # Extract [next] target path, which is defined
+        # relative to the symlink's own directory.
+        if [[ -n $readlinkexe ]]; then # Use `readlink`.
+          target=$("$readlinkexe" "$fname")
+        else # `readlink` utility not available.
+          # Parse `ls -l` output, which is the only POSIX-compliant way
+          # to determine a symlink's target.
+          target=$(command -p ls -l "$fname")
+          target=${target#* -> }
+        fi
+        continue # Resolve [next] symlink target.
+      fi
+      break # Ultimate target reached.
+  done
+  targetDir=$(builtin pwd -P) # Get canonical dir. path
+  # Output the ultimate target's canonical path.
+  printf '%s\n' "${targetDir%/}/$fname"
+
+)
+
+# Helper function for exiting with error message due to runtime error.
+#   die [errMsg [exitCode]]
+# Default error message states context and indicates that execution is aborted. Default exit code is 1.
+# Prefix for context is always prepended.
+# Note: An error message is *always* printed; if you just want to exit with a specific code silently, use `exit n` directly.
+die() {
+  echoError "$kTHIS_NAME: ERROR: ${1:-"ABORTING due to unexpected error."}"
+  exit ${2:-1} # Note: If the argument is non-numeric, the shell prints a warning and uses exit code 255.
+}
+
+# Helper function for exiting with error message due to invalid arguments.
+#   dieSyntax [errMsg]
+# Default error message is provided, as is prefix and suffix; exit code is always 2.
+dieSyntax() {
+  echoError "$kTHIS_NAME: ARGUMENT ERROR: ${1:-"Invalid argument(s) specified"}. Use -h for help."
+  exit 2
+}
+
+# SYNOPSIS
+#   toJsonArray indent item1 ...
+# DESCRIPTION
+#   Returns a multi-line JSON array with the specified indentation comprising the specified items.
+#   Output always starts with \n.
+#   Either pass all values as a single argument, or use multiple ones.
+#   - Any item that starts with " or { is assumed to be a preformatted scalar string / object and is printed as is.
+#   - Otherwise, the item is assumed to be a scalar and is enclosed in "...", unless it is a Boolean or a decimal number.
+#   Separator can be whitespace or comma.
+#   If your items contain embedded whitespace, you MUST use comma as the separator.
+#   Either way, 
+#     - all items are trimmed (leading and trailing whitespace is removed).
+#     - empty items are SKIPPED.
+#   NOTE: 
+#    If at least one comma is found in the items, the entire argument list is split by comma.
+#    To test if the array is empty, use [[ $jsonArr =~ ^[[:space:]]*\[[[:space:]]*\][[:space:]]*$ ]] && echo 'empty'
+# EXAMPLES
+#   toJsonArray ' ' 'one two three' # -> $'\n [\n     "one"\n   , "two"\n   , "three"\n ]\n'
+#   toJsonArray ' ' 'one (1), two (2), three (3)'
+toJsonArray() {
+  local indent=$1; shift
+  local items quoteChar=
+  if [[ "$*" == *,* ]]; then # split by comma
+    IFS=, read -r -a items <<<"$*"
+  else # split by whitespace
+    read -r -a items <<<"$*"
+  fi
+  local countSoFar=0 i item
+  printf "\n${indent}[\n"
+  for (( i = 0; i < ${#items[@]}; i++ )); do
+    read -r item <<<"${items[i]}"  # trim leading and trailing whitespace
+    [[ -z $item ]] && continue # skip empty items
+    printf "${indent}"
+    (( countSoFar++ )) && printf '  , ' || printf '    '
+    if [[ $item =~ ^[\"\{] ]]; then # if the item starts with " or {, assume it's a preformatted scalar /object and print as is.
+      printf '%s\n' "$item"
+    else
+      quoteChar=\"
+      # Do not quote if the item is a Boolean or a number.
+      if [[ $item =~ ^(true|false)$ || $item =~ ^[-+]?[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?$ ]]; then
+        quoteChar=
+      fi
+      printf '%s%s%s\n' "$quoteChar" "$item" "$quoteChar"
+    fi
+  done
+  printf "${indent}]\n"
+}
+
+# SYNOPSIS
+#   toJsonObject indent keyValuePair1 ...
+# DESCRIPTION
+#   Returns a multi-line JSON object with the specified indentation comprising the specified key-value pairs.
+#   Each key-value pair is assumed to be preformatted as valid JSON.
+# EXAMPLES
+#   toJsonObject ' ' '"one": 1' '"two": "zwei"' # -> $'\n {\n     "one": 1\n   , "two": "zwei\n }\n'
+toJsonObject() {
+  local indent=$1; shift
+  printf "\n${indent}{\n"
+  for (( i = 0; i < $#; i++ )); do
+    printf "${indent}"
+    (( i )) && printf '  , ' || printf '    '
+    printf '%s\n' "${@:1+i:1}"
+  done
+  printf "${indent}}\n"
+}
+
+# SYNOPSIS
+#          contains [-i -p] needle "${haystack[@]}"  
+# Determines if a string is contained in an array of strings; the exit code indicates success.
+# -i ... matches case-INsensitively
+# -p ... also *prints* the matching element, if any (useful for knowing the true case of an element)
+# Thanks, http://stackoverflow.com/questions/3685970/bash-check-if-an-array-contains-a-value
+# EXAMPLES
+#   a=('one' 'two' 'three')
+#   contains 'two' "${a[@]}"   && echo 'YES' # -> 'YES'; $? returns 0
+#   contains -i 'TWO' "${a[@]}"   && echo 'YES' # -> 'YES'; $? returns 0
+#   contains -ip 'TWO' "${a[@]}" # -> 'two'; $? returns 0
+contains() ( # run in subshell to localize effect of shopt
+  # Process *options*.
+  local opt printElem=0 caseInsensitive=0 OPTARG= OPTIND=1
+  while getopts 'pi' opt; do
+    case "$opt" in
+      '?') # unknown option
+        return 2
+        ;;
+      p)
+        printElem=1
+        ;;
+      i)
+        shopt -s nocasematch
+        ;;
+    esac
+  done
+  shift $((OPTIND - 1)) # Skip the already-processed arguments (options).
+
+  local el needle=$1; shift
+  for el; do [[ "$el" == "$needle" ]] && { (( printElem )) && printf '%s\n' "$el"; return 0; } done
+  return 1
+)
+
+# SYNOPSIS
+#  substrTrueCase needle haystack
+# BEGIN
+#  Case-INsensitively searches for NEEDLE in HAYSTACK and outputs the string that
+#  matches NEEDLE in its *original case*, i.e., in whatever case it happens to be
+#  contained in HAYSTACK.
+#  If there is no match, nothing is output and the exit code is set to 1.
+# EXAMPLES
+#   token=$(substrTrueCase 'cd' 'AB,CD') # -> $token == 'CD'
+substrTrueCase() ( # run in subshell to localize effect of shopt
+  shopt -s nocasematch
+  [[ $2 =~ ^(.*)("$1") ]] && printf '%s\n' "${BASH_REMATCH[2]}" || return 1
+)
+
+# SYNOPSIS
+#   colorOutput colorNum [...]
+# DESCRIPTION
+#   Prints input in the specified color, which must be an ANSI color code (e.g., 31 for red),
+#   Uses stdin, if no arguments are specified.
+#   Either way, a trailing \n is NOT added.
+#
+#   If the variable kNO_COLOR is set, coloring is suppressed.
+#   An invoking script may set this in case output is NOT being sent to a terminal
+#   (e.g., test -t 1 || kNO_COLOR=1)
+# EXAMPLES
+#   colorOutput 31 "I'm red"
+#   cat file | colorOutput 32 # file contents is printed in green
+colorOutput() {
+  local pre="\033[${1}m" post='\033[0m'
+  (( kNO_COLOR )) && { pre= post=; }
+  shift   
+  if (( $# )); then
+    printf "${pre}%s${post}" "$@"
+  else
+    printf "$pre"
+    cat
+    printf "$post"
+  fi  
+}
+
+# -- The following functions can be used:
+#     - with stdin (e.g., "I'm all green" | green)
+#     - with arguments, inline (e.g., echo "I am $(blue 'blue')."
+#       No trailing \n is added, so you must append one explicitly, if desired.
+
+green() {
+   colorOutput 32 "$@"
+}
+
+red() {
+   colorOutput 31 "$@"
+}
+
+blue() {
+   colorOutput 34 "$@"
+}
+
+yellow() {
+   colorOutput 33 "$@"
+}
+# --
+
+# -- Color-coded printing function for status / warning / error messages.
+
+echoStatus() {
+  blue "$@"
+  printf '\n'
+}
+
+echoWarning() {
+  {
+    yellow "$@"
+    printf '\n'
+  } >&2
+}
+
+echoError() {
+  {
+    red "$@"
+    printf '\n'
+  } >&2
+}
+
+# --
+
+# SYNOPIS
+#   isDirEmpty dir
+# DESCRIPTION
+#   Indicates if the specified directory is fully empty (exit code 0) or not (exit code 1).
+#   The directory must exist, otherwise an error message is printed and the exit code is set to 3.
+#   Fully empty means that hidden items are also considered, with the exception of '.DS_Store' - i.e.,
+#   a directory containing only this 1 file is still considered empty. ('.DS_Store' contains view state for the Finder on OSX).
+# EXAMPLE
+#  isDirEmpty ~/Applications && echo "~/Applications is completely empty."
+isDirEmpty() {
+  [[ -d "${1:-.}" ]] || { echo "$FUNCNAME: ERROR: Argument not found or not a directory: $1"; return 3; }
+  [[ $(shopt -s nullglob dotglob; cd "$1"; echo *) =~ ^$|^\.DS_Store$ ]]
+}
+
+# SYNOPSIS
+#   isInSubtree fileOrFolder putativeAncestorFolder [childrenOnly]
+# DESCRIPTION
+#   Indicates if FILEORFOLDER is in the subtree of PUTATIVEANCESTORFOLDER,
+#   using case-INsensitive COMPARISON.
+#   I.e., tests whether FILEORFOLDER is either a child (direct descendant)
+#   or indirect descendant of PUTATIVEANCESTORFOLDER.
+#   To restrict matching to immediate child items, pass 1 for CHILDRENONLY.
+#   Paths are normalized as much as possible, but symlinks are NOT followed.
+#   Extant paths are fully normalized, non-extant paths are prefix-normalized.
+#   Differences with respect to a terminating / are ignored.
+# EXAMPLES
+#  isInSubtree /usr/local/bin /usr    # -> exit code 0 # yes, in subtree
+#  isInSubtree /usr/local/bin /usr 1  # -> exit code 1 # no, not a direct child
+#  isInSubtree . ~                    # -> exit code 0, if current dir. is descendant of home dir.
+isInSubtree() {
+  local paths=("$1" "$2") childrenOnly=${3:-0}
+  for (( i = 0; i < "${#paths[@]}"; i++ )); do
+    if [[ -d ${paths[i]} ]]; then # path is extant folder, normalize it.
+        paths[i]=$(cd "${paths[i]}"; echo "$PWD")
+    elif [[ -d $(dirname "${paths[i]}") ]]; then # parent path exists, normalize it and append last component
+      name=$(basename "${paths[i]}"); [[ $name == '/' ]] && name=''
+      fldr=$(cd "$(dirname "${paths[i]}")"; echo "$PWD")
+      paths[i]=${fldr%/}/$name
+    else # non-extant path, perform courtesy prefix normalizations
+      case "${paths[i]}" in
+        ./*) # replace './' prefix with current dir.
+          paths[i]=${PWD%/}/${paths[i]:2}
+          ;;
+        ../*) # replace '../' prefix with normalized parent dir.
+          fldr=$(cd "${PWD%/}/.."; echo "$PWD")
+          paths[i]=${fldr%/}/${paths[i]:3}
+          ;;
+        /*) # already an absolute path, nothing to do.
+          ;;
+        *) # not an absolute path, prepend current dir.
+          paths[i]=${PWD%/}/${paths[i]}
+          ;;
+      esac
+    fi
+  done
+  if (( childrenOnly )); then
+    (shopt -s nocasematch; [[ $(dirname "${paths[0]}") == ${paths[1]} ]])
+  else
+    (shopt -s nocasematch; [[ ${paths[0]} == "${paths[1]%/}/"* ]])
+  fi
+}
+
+# SYNOPSIS
+#   expandVars text
+#   ... | expandVars
+# DESCRIPTION
+#   Expands (interpolates) a bash string template containing unexpanded shell variable references,
+#   based on the current shell environment.
+#   NOTE: Only simple variable references are expanded, NOT command or arithmetic substitions.
+#         DO escape literal $ instances as \$ in the input.
+#         Single \ instances in the input not followed by $ are preserved; however, to preserve 
+#         *multiple* adjacent \ chars. you must DOUBLE them in the input.
+#         EDGE CASES: 
+#           - A variable expansion with an *embedded* command or arithmetic substitution - e.g., 
+#            "${HOME:0:`echo 10`}" - will BREAK this function.
+#           - A malformed variable expansion - e.g., "${HOME" (missing closing '}') - will
+#             BREAK this function.
+# EXAMPLES
+#   expandVars 'Go $HOME'         # -> 'Go /Users/jdoe'
+expandVars() {
+  local txtToEval=$*
+  # If no arguments were passed, process stdin input.
+  (( $# == 0 )) && IFS= read -r -d '' txtToEval
+  # Disable command substitutions and arithmetic expansions to prevent execution
+  # of arbitrary commands.
+  # If you fully trust or control the input, you can disable these statements.
+  # Note that selectively allowing $((...)) or $[...] to enable arithmetic
+  # expressions is NOT safe, because command substitutions could be embedded in them.
+  txtToEval=${txtToEval//\`/\\\`}    # disable `...`
+  txtToEval=${txtToEval//\$(/\\\$(}  # disable both $(...) and $((...))
+  txtToEval=${txtToEval//\$[/\\\$[}  # disable $[...] 
+  # Pass the string to `eval`, escaping embedded double quotes first.
+  # `printf %s` ensures that the string is printed without interpretation
+  # (after processing by by bash).
+  eval printf %s "\"${txtToEval//\"/\\\"}\""   # " <- the sole purpose of this is to fix a bug with syntax highlighting in ST.
+}
+
+# SYNOPSIS
+#   expandTemplate [-O [-d] [-n]] [-s] file ...
+#   expandTemplate  -O [-d] [-n]  [-s] fileOrDir ...
+#   expandTemplate [-s]
+# DESCRIPTION
+#   Expands (interpolates) the contents of template files containing unexpanded variable references,
+#   command substitutions, and arithmetic expansions, based on the current shell environment.
+#   Optionally, expansions can be limited to variable references only.
+#   Without filename operands, input is read from stdin (even interactively *all* input is read at once).
+#   
+#   NOTE: Only the $(...) form of command substitution is recognized - `...` sequences are IGNORED.
+#         This reduces the likelhood of accidental expansion, especially with Markdown input.
+#         Do NOT escape ` instances in the input.
+#         DO escape literal $ instances as \$ in the input.
+#         Single \ instances in the input not followed by $ are preserved; however, to preserve 
+#         *multiple* adjacent \ chars. you must DOUBLE them in the input.
+#         EDGE CASES:
+#           - A variable expansion with an (unsupported) *embedded* backticks command substitution
+#             - e.g., "${HOME:0:`echo 10`}" - will BREAK this function.
+#             With -s, *any* command or arithmetic substitution embedded in a variable expansion
+#             will break.
+#           - A malformed variable expansion - e.g., "${HOME" (missing closing '}') - will
+#             BREAK this function.
+#
+#   Outputs the expanded result to stdout by default.
+#   With -O, the path of [each] file created is printed instead.
+#
+#   -s
+#     Safe mode: only variable references are expanded, not command substitutions or arithmetic expansions.
+#   -O
+#     Requires input files named *.tmpl or *.tmpl(<someOtherExt>)+: saves the expansion results back to files 
+#     in the same dir. named just * or *.(<someOtherExt>)+ (i.e., the '.tmpl' is removed from the filename part).
+#     You may specify *directories* instead of input files, in which case all matching template files in a given
+#     directory's *subtree* are processed.
+#     Note that matching '.tmpl' is case-SENSITIVE and that the *filename* of each template file is also
+#     expanded - be sure that the expansion results in a valid filename.
+#     If a template file is executable, the expanded file will be made executable too.
+#     CAUTION: Existing output files are by default silently replaced, unless -n is specified.
+#     -d 
+#      On successful expansion and creation of the output file, DELETES the INPUT file.
+#      CAUTION: Only use this if you've *cloned* the master templates first and are now passing in *cloned* templates
+#      that are no longer needed after expansion.
+#     -n
+#       Preserves existing target files (does not overwrite them). 
+# CAVEATS
+#   - CAUTION: Unless you use -s: UNSAFE, ONLY USE WITH TRUSTED INPUT - any embedded $(...) command substitutions 
+#            and arithmetic expansions - $((...)) or $[...] - are blindly executed.
+#   - Each file processed is read into memory as a whole.
+# EXAMPLES
+#   expandTemplate <<<'Go $HOME.' # -> 'Go /Users/jdoe.'
+#   expandTemplate -O *.tmpl.*  # expand templates and save to filenames without '.tmpl'
+#   expandTemplate -O .   # expand all templates and save to filenames without '.tmpl' in entire subtree of current dir.
+expandTemplate() {
+  local safe=0 toFiles=0 deleteTemplatesAfter=0 noOverwrite=0 f files allFiles txtToEval outFile tmpFile kTMPL_EXT='.tmpl'
+  local tmplFnameRegex='[^/.]'"${kTMPL_EXT/./\.}"'(\.[^./][^ /]*)?$' # regex that matches template filenames
+  # -- argument processing
+  OPTARG= OPTIND=1 # !! Required, if `getopts` was previously called in the current shell.
+  while getopts ':sOdn' opt; do  # $opt will receive the option *letters* one by one; a trailing : means that an arg. is required.
+    case "$opt" in
+      '?')
+        { echo "ARGUMENT ERROR: Unknown option: -$OPTARG" >&2; return 2; }
+        ;;
+      's')
+        safe=1
+        ;;
+      'O')
+        toFiles=1
+        ;;
+      'd')
+        deleteTemplatesAfter=1
+        ;;
+      'n')
+        noOverwrite=1
+        ;;
+    esac
+  done
+  shift $((OPTIND - 1)) # Skip the already-processed arguments (options).
+  (( (deleteTemplatesAfter || noOverwrite) && !toFiles )) && { echo 'ARGUMENT ERROR: Incompatible options specified.' >&2; return 2; }
+  if (( $# == 0 )); then # Stdin input.
+    (( toFiles )) && { echo 'ARGUMENT ERROR: Incompatible arguments specified.' >&2; return 2; }
+    tmpFile=$(mktemp -t 'XXXX') # Works on both OSX and Linux; note: file will have random extension on OSX (e.g., '.../XXXX.bJViLcM3') and none on Linux (e.g., '.../vXDA')
+    cat > "$tmpFile"
+    allFiles=( "$tmpFile" )
+  else
+    # -- Pre-process files and dirs. to validate filenames and expand dirs. to indiv. matching files to get an all-files array.
+    allFiles=()
+    for f; do
+      if [[ -f $f || -p $f ]]; then
+        if (( toFiles )); then
+          [[ $f =~ $tmplFnameRegex ]] || { echo "ERROR: Unexpected input filename; requires '.tmpl' as a filename extension (needn't be the last): $f" >&2; return 1; }
+        fi
+        allFiles+=( "$f" )
+      elif [[ -d $f ]]; then
+        (( toFiles )) || { echo "ERROR: To specify a directory, you must also use -O: $f" >&2; return 1; }
+        files=()
+        IFS=$'\n' read -d '' -ra files < <(find "$f" -type f | egrep "$tmplFnameRegex")
+        (( ${#files[@]} > 0 )) || { echo "ERROR: No template files found in directory subtree: $f" >&2; return 1; }
+        allFiles+=( "${files[@]}" )
+      else
+         { echo "ERROR: Not found or neither a file nor a directory: $f" >&2; return 1; }
+      fi
+    done
+  fi
+  # -- Perform expansion.
+  for f in "${allFiles[@]}"; do
+    txtToEval=
+    IFS= read -r -d '' txtToEval < "$f" # !! Curiously, this command returns exit code 1, even if it succeeds. Adding a trailing NUL to the input would fix that, but is not worth it.
+    [[ -n $txtToEval ]] || { echo "ERROR: Cannot read file or file is empty: $f" >&2; return 1; }
+    txtToEval=${txtToEval//\`/\\\`}   # Escape backticks, because we do NOT want them to be interpreted as command substitutions.
+    if (( safe )); then # Safe mode: only expand variables -> disable command and arithmetic substitutions.
+      txtToEval=${txtToEval//\$(/\\\$(}  # disable both $(...) and $((...))
+      txtToEval=${txtToEval//\$[/\\\$[}  # disable $[...] 
+    fi
+    txtToEval=${txtToEval//\"/\\\"}   # Escape " chars., because " is used to enclose the overall input string inside the command passed to eval below.
+    if (( toFiles )); then
+      # Synthesize the output filename: same as input path, but with '.tmpl' removed.
+      # Note that we also *expand* the resulting filename (but not its path component).
+      outFile=$(eval printf %s "\"$(basename "$f" "$kTMPL_EXT")\""); outFile=${outFile/$kTMPL_EXT./.}; outFile="$(dirname "$f")/$outFile"
+      if (( noOverwrite )) && [[ -f $outFile ]]; then
+        echo "(Existing file preserved: $outFile)" >&2
+      else
+        eval printf %s "\"${txtToEval}\"" > "$outFile" || { echo "ERROR: Expansion of '$f' to '$outFile' failed." >&2; rm -f "$outFile"; return 1; }
+        # If the input template is executable, make the output file executable too.
+        [[ -x $f ]] && { chmod +x "$outFile" || { echo "ERROR: Failed to make '$outFile' executable." >&2; return 1; }; }
+        echo "$outFile"  # Echo the path of each output file created as status output.
+      fi
+      (( deleteTemplatesAfter )) && { rm "$f" || echo "WARNING: Failed to delete input file: $f" >&2; }
+    else # Output expanded result to stdout.
+      eval printf %s "\"${txtToEval}\""
+    fi
+  done
+  [[ -n $tmpFile ]] && rm -f "$tmpFile"
+  return 0
+}
+
+
+# SYNOPSIS
+#   readPropertyFile file
+# DESCRIPTION
+#   Reads a Java properties-style file FILE and defines shell-global variables for all properties found.
+#   Expected format is <property>=<unquoted-value> - whitespace around '=' is optional; <property> must be a valid bash variable name.
+#   Escape sequences are recognized in values; a literal '\' must be escaped as '\\'.
+#
+#   A # or ! as the first non-whitespace char. on a line marks the line as a comment.
+#   Note that in-line comments after values are NOT supported.
+#
+#   LIMITATIONS and DEVIATIONS from the .properties-file standard:
+#      - property names must be valid Bash variable names (matching regex [[:alpha:]_][[:alpha:][:digit:]_]*)
+#      - _Trailing_ whitespace is also removed from values, not just leading whitespace.
+#      - Spaces cannot be represented as '\ '; to represent a leading or trailing space, use '\040'
+#      - Literal newlines in values are not supported; use '\n' to represent line breaks, and other \-escape sequences to represent control chars.
+#      - Literal '\' chars. must be represented as '\\'.
+#
+#   Syntactically invalid lines generate a warning.
+#
+#   Return value is 0, if at least one variable is successfully read and defined, 1 otherwise.
+readPropertyFile() {
+  local __rpf_trimmedLine __rpf_key __rpf_value __rpf_atLeastOneRead=0 # Note: since this function sets shell-global variables, we use "namespaced" local variable names to avoid name collisions.
+  while read -r __rpf_trimmedLine; do # read line as a whole, but trim leading and trailing whitespace
+     # Skip, if empty or comment line.
+    [[ -z $__rpf_trimmedLine || $__rpf_trimmedLine =~ ^[\#!] ]] && continue
+    # Parse into property name and __rpf_value.
+    [[ $__rpf_trimmedLine =~ ^([[:alpha:]_][[:alpha:][:digit:]_]*)[[:blank:]]*=[[:blank:]]*(.*)$ ]] || { echo "WARNING: Ignoring invalid line found in properties file '$1': $__rpf_trimmedLine" >&2; continue; }
+    __rpf_key="${BASH_REMATCH[1]}" __rpf_value="${BASH_REMATCH[2]}"
+    # Create global shell variable named for the property, with the property's __rpf_value.
+    # Note: By using %b, we turn on interpretation of backslash escape sequences.
+    if [[ -n $__rpf_value ]]; then # nonempty value found
+      printf -v "$__rpf_key" '%b' "$__rpf_value"
+    else  # !! printf -v doesn't perform an assignment if the resulting string is the *empty* string.
+      eval "$__rpf_key="  # we still want to *create* the variable even if it is *empty*, so `unset $__rpf_key` is not an option; we use `eval`, which is safe to use in this instance.
+    fi
+    __rpf_atLeastOneRead=1
+  done < "$1"
+  return $(( __rpf_atLeastOneRead == 0 )) # 0, if at least 1 property was read, 1 otherwise.
+}
+
+# SYNOPSIS
+#   setProperty file key val
+# DESCRIPTION
+#   Sets (adds or updates) a property value in a Java-style *.properties file. The file is created on demand.
+#
+#   VAL is stored in a way that it can later be restored with printf %b.
+#   Line breaks and control chars. are encoded as \n and \t, for instance.
+#   Literal \ chars. are stored as \\.
+#   Leading and trailing whitespace is correctly encoded. To manually represent a leading or trailing space by directly editing
+#   the file, use \040
+#
+#   Caveats:
+#     - A new file is created and then renamed, so if the original file was a symlink, it is replaced with a regular file.
+#       Updating is unconditional, so the file is rewritten even if it already contained a property with the target value.
+#     - Sloow, because the entire file is read line by line.
+#
+#   LIMITATIONS and DEVIATIONS from the .properties-file standard: see readPropertyFile()
+#
+# Example:
+#   setProperty settings.properties level 1
+setProperty() {
+
+  local file=$1 key=$2 newVal=$3 tmpFile line leadingValWhitespace trailingValWhitespace leadingLineWhitespace aKey whitespaceBeforeEqualsSign oldVal escapedNewVal
+  local -i updated
+
+  touch "$file" || return # create the target file, if it doesn't exist yet.
+  tmpFile=$(mktemp -t 'XXXX') || return # Works on both OSX and Linux; note: file will have random extension on OSX (e.g., '/var/folders/19/0lxcl7hd63d6fqd813glqppc0000gn/T/XXXX.bJViLcM3') and none on Linux (e.g., '/tmp/vXDA')
+
+  # Extract leading and/or trailing *value* whitespace, if any, and strip it.
+  [[ $newVal =~ ^(' '+) ]] && leadingValWhitespace=${BASH_REMATCH[1]} && newVal=${newVal#$leadingValWhitespace}
+  [[ $newVal =~ [^' ']([ ]+)$ ]] && trailingValWhitespace=${BASH_REMATCH[1]} && newVal=${newVal%$trailingValWhitespace}
+
+  # Determine the single-line encoded (escaped) 
+  escapedNewVal=$(printf '%q' "$newVal")
+  if [[ $escapedNewVal == "$'"* ]]; then # printf %q returned a $'...' string (this implies the presence of control chars., including newlines) -> strip the delimiter - on reading, printf %b will re-expand the control chars.
+    escapedNewVal=${escapedNewVal:2}
+    escapedNewVal=${escapedNewVal%?}
+  else # printf %q returned a string with *individually* quoted chars. (e.g., '\*'' for *, or '\ ' for ' '): this implies the *absence* of control chars., including newlines
+    # We use the string *almost* as is: we need to escape `\` chars. so that they don't get interpreted by printf %b on reading
+    escapedNewVal=${newVal//\\/\\\\}
+  fi
+
+  [[ -n $leadingValWhitespace ]] && escapedNewVal=${leadingValWhitespace// /\\0040}${escapedNewVal}
+  [[ -n $trailingValWhitespace ]] && escapedNewVal=${escapedNewVal}${trailingValWhitespace// /\\0040}
+
+  updated=0
+  while IFS= read -r line; do # read line as a whole, unmodified
+    if (( ! updated )); then
+      # Tokenize line.
+      if [[ $line =~ ^([[:blank:]]*)([[:alpha:]_][[:alpha:][:digit:]_]*)([[:blank:]]*)=[[:blank:]]*(.*)$ ]]; then
+        leadingLineWhitespace=${BASH_REMATCH[1]} aKey=${BASH_REMATCH[2]} whitespaceBeforeEqualsSign=${BASH_REMATCH[3]} oldVal=${BASH_REMATCH[4]}
+        if [[ "$key" == "$aKey" ]]; then # target key found, update the line
+          printf '%s%s%s=%s%s\n' "$leadingLineWhitespace" "$key" "$whitespaceBeforeEqualsSign" "$whitespaceBeforeEqualsSign" "$escapedNewVal"
+          updated=1
+          continue
+        fi
+      fi
+    fi
+    printf '%s\n' "$line"
+  done < "$file" > "$tmpFile" || return
+
+  if (( updated )); then
+    mv -f "$tmpFile" "$file" || return # Replace the original file with the temp. one.
+  else # key doesn't exist yet? simply append directly to the original file.
+     rm -f "$tmpFile"
+     printf '%s=%s\n' "$key" "$escapedNewVal" >> "$file" || return
+  fi
+
+  return 0
+}
+
+
+# SYNOPSIS
+#   editSettings file templateFile
+# DESCRIPTION
+#   Opens the specified file for modal editing in the system's visual editor, optionally creating the file by cloning the specified template beforehand.
+editSettings() {
+  local file=$1 templateFile=$2
+  # Copy the settings-file template to the user's home dir., if it doesn't exist there yet.
+  if [[ ! -f $file ]]; then
+    cp "$templateFile" "$file" || die "Failed to copy settings file template $templateFile to your home directory as $file."
+  fi
+  "${EDITOR:-vi}" "$file"
+}
+
+# SYNOPSIS
+#   generateGhAuthToken ghUsername descr [scopes]
+# DESCRIPTION
+#   Creates and outputs an OAuth (authorization) token obtained via GitHub's API v3 for 
+#   the specified GitHub username with the specified description and, optionally scopes.
+#   SCOPES can be a list of scopes (single argument), and defaults to 'repo' (the ability to access and create both private and public repos),
+#   The password is *prompted for*.
+# PREREQUISITES
+#   The 'json' CLI in the $PATH (npm package 'json' - see https://www.npmjs.com/package/json)
+# NOTES
+#   A token can have many more fields not covered here - see https://developer.github.com/v3/oauth_authorizations/#create-a-new-authorization
+generateGhAuthToken() {
+  local username=$1 descr=$2 scopes=${3:-repo} arrScopes scopesJson res errMsg token
+  # Convert the scopes list to a JSON array-elements list.
+  IFS=', ' read -ra arrScopes <<<"$scopes"
+  scopesJson=\"${arrScopes[0]}\"
+  for scope in "${arrScopes[@]:1}"; do scopesJson+=", \"$scope\""; done
+  # Note that curl itself will only fail if something goes wrong fundamentally. If GitHub responds and sends data -
+  # even if that data indicates failure - curl reports success.
+  res=$(curl -s -u "$username" 'https://api.github.com/authorizations' -d "{ \"scopes\": [ $scopesJson ], \"note\":\"$descr\"}") || return
+  token=$(json 'token' <<<"$res") || return
+  if [[ -z $token ]]; then
+    # Property 'message' contains the error message, optional property 'errors' contains extended error information.
+    errMsg=$(json 'message' 'errors' <<<"$res" | tr '\n' ' ')
+    echoError "Generating authorization token for user '$username' with description '$descr' and scopes '$scopes' failed:"$'\n\t'"$errMsg"
+    return 1
+  fi
+  printf '%s\n' "$token"
+}
+
+# SYNOPSIS
+#   createGhRepo username authToken repoName [repoDescription]
+# DESCRIPTION
+#   Given a valid GitHub authorization token, creates a repository with the specified name and optional description.
+#   Uses the GitHub API v3. Note that USERNAME, the GitHub username, is only used for error messages.
+#   If a repo by that name already exists, a specific error message is issued, and the exit code is set to 3.
+#   Any other error reported by GitHub results in exit code 1.
+#   No stdout output is produced.
+# PREREQUISITES
+#   The 'json' CLI in the $PATH (npm package 'json' - see https://www.npmjs.com/package/json)
+createGhRepo() {
+  local username=$1 token=$2 name=$3 descr=$4 res id errMsg
+  # Note that curl itself will only fail if something goes wrong fundamentally. If GitHub responds and sends data -
+  # even if that data indicates failure - curl reports success.
+  res=$(curl -s "https://api.github.com/user/repos?access_token=$token" -d "{ \"name\": \"$name\", \"description\": \"${descr//\"/\\\"}\" }") || return
+  id=$(json 'id' <<<"$res") || return
+  if [[ -z $id ]]; then
+    # Property 'message' contains the error message, optional property 'errors' contains extended error information.
+    errMsg=$(json 'message' 'errors' <<<"$res" | tr '\n' ' ')
+    # !! We want to detect the case where a repo by that name already exists, but, sadly, the "errors.code" field just says "custom".
+    # !! We simply search all "errors" properties for the string "already exists".
+    if fgrep -iq $'already exists\nalready_exists' <<<"$errMsg"; then
+      echoError "GitHub repository '$username/$name' already exists."
+      return 3  # special exit code
+    else
+      echoError "Creating GitHub repository '$username/$name' failed:"$'\n\t'"$errMsg"
+      return 1
+    fi
+  fi
+}
+
+# =================== END: Helper functions
+
+
+# ----- BEGIN: Script-global constants
+
+unset CDPATH  # to prevent unpredictable `cd` behavior
+
+kTHIS_NAME=$(basename "$BASH_SOURCE") # this script's name
+# Determine this script's folder, resolving the chain of symlinks to ensure that the true package location is found.
+kTHIS_FOLDER=$(dirname "$(dirname "$(rreadlink "$BASH_SOURCE")")") # Note: assumes that this script is in a *subfolder* of the package, namely: bin/.
+kTEMPLATE_FOLDER="$kTHIS_FOLDER/templates"
+
+# !! Add the CLIs that come with this package's *dependencies* to the $PATH.
+# !! Notably, we need this for the `json` CLI.
+PATH="$kTHIS_FOLDER/node_modules/.bin:$PATH"
+
+# The path to the settings file and its template.
+kSETTINGS_FILE_TEMPLATE="${kTHIS_FOLDER}/.${kTHIS_NAME}-rc"
+kSETTINGS_FILE=${MAKE_PKG_RC:-~/$(basename "$kSETTINGS_FILE_TEMPLATE")}
+
+# The IDs of the OSs supported by Node.js, as reported by `process.platform`.
+kOS_IDS=( 'darwin' 'freebsd' 'linux' 'sunos' 'win32' )
+
+# ----- END: Script-global constants
+
+# ----- BEGIN: Handle the standard CLI-help and version-printing options, which exit right after doing their job.
+
+# Output version number and exit, if requested. Note that the `ver='...'` statement is automatically updated by `make version VER=<newVer>` - DO keep the 'v' suffix in the variable _definition_.
+[[ $1 == '--version' ]] && { ver='v0.1.0'; echo "$kTHIS_NAME ${ver#v}"; exit 0; }
+
+# Command-line help.
+if [[ $1 == '--help' || $1 == '-h' ]]; then
+  cat <<EOF
+SYNOPSIS
+  $kTHIS_NAME [-l] [-f] 
+  $kTHIS_NAME -e
+
+DESCRIPTION
+  Initializes an npm package project in the current directory.
+
+  To create a new package, change to a new or
+  preexisting-but-empty directory and run $kTHIS_NAME there.
+
+  -l
+    Local processing only: no attempt is made to create a matching
+    repository on GitHub.
+
+  -f
+    Forces execution in the current directory, even if it is
+    not empty. However, the only existing file that will be replaced 
+    in that event is 'package.json' - other existing files, including
+    a Git repository, if present, are left untouched.
+
+  -e
+    Opens this utility's settings file, ${kSETTINGS_FILE/#$HOME/\$HOME}, for editing.
+
+  In addition to initializing 'package.json', this utility:
+   * initializes a local Git repository, adds a .gitignore file, defines the remote 'origin' repo
+   * creates a matching remote repository on GitHub
+   * instantiates several template files so as to provide a starting point for a 
+     read-me file, license file, ...
+   * installs stubs for the main module, the CLI, if applicable, and tests
+   * installs npm dev dependencies for managing the new package
+   * installs a Makefile with a set of tasks for releasing and maintaining the package
+
+  For more information, visit https://github.com/mklement0/$kTHIS_NAME
+
+EOF
+    exit 0
+
+fi
+# ----- END: standard CLI-help and version-printing options
+
+  # Process *options*.
+force=0 edit=0 localOnly=0
+while getopts ':lfe' opt; do  # $opt will receive the option *letters* one by one; a trailing : means that an arg. is required, reported in $OPTARG.
+  [[ $opt == '?' ]] && dieSyntax "Uknown option: -$OPTARG"
+  case "$opt" in
+    l)
+      localOnly=1
+      ;;
+    f)
+      force=1
+      ;;
+    e)
+      edit=1
+      ;;
+    *)
+      die "DESIGN ERROR: option -$opt not handled." 3
+      ;;
+  esac
+done
+
+shift $((OPTIND - 1)) # Skip the already-processed arguments (options).
+
+# Test for incompatible options
+(( force && edit )) && dieSyntax "Incompatible options specified."
+
+# Make sure that not too many arguments were specified.
+(( $# == 0 )) || dieSyntax "Unexpected argument(s) specified: $*"
+
+if (( ! edit )); then
+
+  # Make sure that this utility is not run from a directory inside its *own* package.
+  if [[ "$(pwd -P)" == "$kTHIS_FOLDER" ]] || isInSubtree "$(pwd -P)" "$kTHIS_FOLDER"; then
+    die "You mustn't run this utility in a directory inside its own package."
+  fi
+
+  if ! isDirEmpty .; then
+    (( force )) || die "Aborting, because the current directory is NOT EMPTY."$'\n'"  To force running nonetheless, use -f."
+    echoWarning "WARNING: Forced execution in non-empty directory. Existing files are preserved, except for 'package.json'; npm packages may get updated."
+  fi
+
+fi
+
+# Ensure that the required utilities are installed.
+[[ -n $(command -v git) ]] || die "Executable \`git\` not found. Please make sure that Git is installed - see http://git-scm.com/"
+[[ -n $(command -v npm) ]] || die "Executable \`npm\` not found. Please make sure that Node.js is installed - see https://nodejs.org/"
+
+# See if the `hub` utility (https://github.com/github/hub) is installed.
+# If it is, we'll use its stored GitHub authorization configuration.
+[[ -n $(command -v hub) ]] && haveHubUtil=1 || haveHubUtil=0
+
+# ----- BEGIN: Settings. They are read from the settings file and/or derived from other sources.
+
+editIfNeededAndContinue=$(( ! edit )) #  editIfNeededAndContinue == true means: normal invocation for creating a new package, with on-demand editing of the properties file, if properties are found missing.
+while :; do  # dummy loop that enables re-reading the settings after having triggered editing of the settings on demand.
+
+  if (( editIfNeededAndContinue )); then
+      
+    # Read the settings file, if extant.
+    [[ -f $kSETTINGS_FILE ]] && { readPropertyFile "$kSETTINGS_FILE" || die; }
+
+    # If the vAUTHOR setting isn't defined, try to derive it from the global Git configuration.
+    if [[ -z $vAUTHOR ]]; then
+      vAUTHOR_NAME=$(git config --global user.name)
+      vAUTHOR_EMAIL=$(git config --global user.email)
+      vAUTHOR=
+      if [[ -n $vAUTHOR_NAME && -n $vAUTHOR_EMAIL ]]; then
+        vAUTHOR="$vAUTHOR_NAME <$vAUTHOR_EMAIL>${vAUTHOR_WEBSITE:+ (}${vAUTHOR_WEBSITE}${vAUTHOR_WEBSITE:+)}"
+      else
+        echoWarning $'WARNING: Failed to get your full name and/or email address from your global Git configuration.\nPreferably abort now and fix this in Git, or proceed and hard-code a vAUTHOR value in the settings file.'
+      fi
+    else # $vAUTHOR is explicitly defined, so we must derive $vAUTHOR_NAME from it (everything before either ' <' or ' (').
+      vAUTHOR_NAME=$(sed 's/^\([^<(]*\).*/\1/; s/ \{1,\}$//' <<<"$vAUTHOR")
+    fi
+
+    # If the vGITHUB_USERNAME setting isn't defined, try to derive it from the `hub` utility's configuration.
+    if [[ -z $vGITHUB_USERNAME || -z $vGITHUB_TOKEN ]]; then
+      if [[ $haveHubUtil -eq 1 && -r ~/.config/hub ]]; then
+        # Note: 
+        #   Sadly, hub doesn't provide a feature to print its configuration.
+        #   Also note that this info will only be present if Hub has actually been used at least once to access the GH API, e.g., in the context of `hub create`.
+        #   as prompting happens on demand. There is NO explicit command to just authorize.
+        #   ~/.config/hub is a YAML file, but we don't want to install a YAML parser just for that, so perform makeshift parsing with Awk.
+        [[ -z $vGITHUB_USERNAME ]] && vGITHUB_USERNAME=$(awk -F '[[:space:]-]+' '$2 == "user:" { print $3; exit}' ~/.config/hub 2>/dev/null)
+        [[ -z $vGITHUB_TOKEN ]] && vGITHUB_TOKEN=$(awk -F '[[:space:]-]+' '$2 == "oauth_token:" { print $3; exit}' ~/.config/hub 2>/dev/null)
+      fi
+    fi
+
+    # --- BEGIN: Apply HARD-CODED DEFAULTS to values not defined in the properties file.
+
+    vVERSION=${vVERSION:-0.0.0}  # Note: We start with version 0.0.0, so that `make version VER=...` can be used to set the first true version number.
+
+    # Default to false for the "private" property; i.e., by default, DO mark packages as designed for publishing in the npm registry.
+    vPRIVATE=${vPRIVATE:-false}
+
+    # The "preferGlobal" property (whether the package is designed for global installation).
+    # Note that we require an *explicit* choice for this property, so the value 
+    # here doesn't matter, except to implicitly mark the variable as a *Boolean*.
+    vPREFERGLOBAL=false
+
+    # --- END: Apply HARD-CODED DEFAULTS to values not defined in the properties file.
+
+    # Convert the list of license SPDX IDs into an array.
+    IFS=', ' read -r -a vLIC_SPDX_IDs <<<"$vLIC_SPDX_IDs"
+
+    # Check for required settings and prompt for editing the settings file, if any are missing.
+    if [[ -z $vGITHUB_USERNAME || -z $vAUTHOR ]]; then
+      cat <<EOF
+----------
+$(printf %s "REQUIRED SETTINGS ARE MISSING from the settings file, $kSETTINGS_FILE." | red)
+
+Typically, this means that you're running this utility for the first time.
+
+Please EDIT THE SETTINGS FILE and supply values at least for those settings
+marked "REQUIRED".
+Those marked "RECOMMENDED" are not strictly required, but set useful defaults.
+
+You can edit the settings file anytime with \`$kTHIS_NAME -e\`.
+----------
+EOF
+      while :; do
+        read -er -p "Would you like to edit it now? (y/N) " val
+        [[ -z $val || $val =~ [nN] ]] && { echo "Aborted." | red >&2; exit 2; }
+        [[ $val =~ [yY] ]] && break
+        echoError "Invalid input. Please try again."
+      done
+      edit=1 # set flag to trigger editing below
+
+    elif [[ ! -f $kSETTINGS_FILE ]]; then
+
+      cat <<EOF
+----------
+$(printf %s "INITIALIZE OPTIONAL SETTINGS via the settings file, $kSETTINGS_FILE." | blue)
+
+The settings file doesn't exist yet, which typically means that you're
+running this utility for the first time.
+
+While all required settings could be derived from other sources, it's worth
+configuring some DEFAULTS: please review and fill in settings as needed,
+especially those marked "RECOMMENDED". 
+
+You can edit the settings file anytime with \`$kTHIS_NAME -e\`.
+----------
+EOF
+      while :; do
+        read -er -p "Would you like to edit it now? (y/N) " val
+        [[ -z $val || $val =~ [nN] ]] && break
+        [[ $val =~ [yY] ]] && { edit=1; break; } # set flag to trigger editing below
+        echoError "Invalid input. Please try again."
+      done
+
+    else 
+
+      edit=0  # Reset the edit flag; needed, if we get here after after editing had to be triggered in a previous pass.
+
+    fi # required-settings check
+
+  fi # (( editIfNeededAndContinue ))
+
+  # If explicitly requested or implicitly needed, open the settings file in
+  # a text editor modally now.
+  if (( edit )); then
+    editSettings "$kSETTINGS_FILE" "$kSETTINGS_FILE_TEMPLATE" || die
+    (( editIfNeededAndContinue )) && continue  # re-read the settings and see if all required settings are now defined.
+    exit 0  # if editing was explicitly requested, exit now.
+  fi
+
+  # As a courtesy, offer to create a GitHub authorization token programmatically.
+  if [[ $localOnly -eq 0 && -z $vGITHUB_TOKEN ]]; then
+      cat <<EOF
+----------
+$(printf %s "GENERATE A GITHUB AUTHORIZATION TOKEN" | blue)
+
+TO CREATE REPOS ON GITHUB THAT MATCH THE LOCAL ONES, A
+GITHUB AUTHORIZATION TOKEN IS NEEDED, which requires
+that you supply your GitHub password as a one-time action - note that 
+your password itself will NOT be stored.
+
+You can skip this step by entering nothing and then choosing to skip.
+To suppress this prompt in the future, use \`$kTHIS_NAME -l\`.
+
+The generated token - which should be kept secret - will be stored in 
+settings file ${kSETTINGS_FILE/#$HOME/~}, which you can edit anytime with \`$kTHIS_NAME -e\`.
+----------
+EOF
+    echo "Please enter your GITHUB PASSWORD on the following line:"
+    while :; do
+      vGITHUB_TOKEN=$(generateGhAuthToken "$vGITHUB_USERNAME" "$kTHIS_NAME on $HOSTNAME" 'repo')
+      if [[ -z $vGITHUB_TOKEN ]]; then # failed
+        echoWarning "To manage / create tokens manually, go to https://github.com/settings/tokens"
+        read -er -p "(R)etry, (s)kip, or (a)bort (r/s/A)? " val
+        [[ -z $val || $val =~ [aa] ]] && { echo "Aborted." | red >&2; exit 2; }
+        [[ $val =~ [sS] ]] && break
+        [[ $val =~ [rR] ]] && continue
+        echoError "Invalid input. Please try again."
+      else # Save the generated token in the settings file.
+        setProperty "$kSETTINGS_FILE" 'vGITHUB_TOKEN' "$vGITHUB_TOKEN" || die
+        break
+      fi
+    done
+    [[ -n $vGITHUB_TOKEN ]] || echoWarning "Since no authorization token could be obtained, no matching repo on GitHub will be created."
+  fi
+
+  # Derive the dev dependencies from *this* script's package - it is assumed to have the same dev dependencies as any package it creates.
+  # Note: Some dev. dependencies are package-*type* specific: 'urchin' is effectively only needed for CLI-only packages; 
+  #       however, since packages are so small, we don't bother with filtering out unneeded ones after the fact.
+  vDEV_DEPENDENCIES=$(json -f "$kTHIS_FOLDER/package.json" -j 'devDependencies')
+  [[ -n $vDEV_DEPENDENCIES ]] || die "Failed to determine dev dependencies."
+
+  # DERIVED PACKAGE-SPECIFIC defaults.
+
+  vNAME=$(basename "$PWD")    # The package's name.
+  vMAIN='${vNAME}.js'         # Main JS module filename - default to the package name - WILL BE EXPANDED *DURING* PROMPTS, based on chosen package name.
+
+  # !! Since the following depend on values the user can change when prompted below, we must defer deriving their values until after the prompts.
+  # !! Note how they're defined with SINGLE quotes, as TEMPLATES - to be expanded LATER, via expandVars()
+  # !! VARIABLES DEFINED HERE MAY OR MAY NOT BE INCLUDED DIRECTLY IN PACKAGE.JSON - SOME ARE ONLY REFERENCED FROM *.TMPL FILES IN THIS PACKAGE.
+  # !! DO NOT ASSUME THAT A VARIABLE CAN BE REMOVED JUST BECAUSE ITS VALUE ISN'T USED IN THE CREATION OF package.json
+  delayedExpansionVars=( vHOMEPAGE vREPO_URL vBUGS_URL vLIC_URL )
+  vHOMEPAGE='https://github.com/${vGITHUB_USERNAME}/${vNAME}'
+  vREPO_URL='https://github.com/${vGITHUB_USERNAME}/${vNAME}.git' # Note: The '.git' suffix is seemingly not *required* - even npm's own package doesn't have it - but we include it, as it should be used for commands such as `git add remote`.
+  vBUGS_URL='https://github.com/${vGITHUB_USERNAME}/${vNAME}/issues'
+  vLIC_URL='https://spdx.org/licenses/${vLIC_SPDX_ID}#licenseText'  # Note: This won't be saved to package.json, but USED IN TEMPLATE FILE "LICENSE.tmpl.md"
+    # Instructions (hints) that are referenced from README.tmpl.md
+  vINST_INSTR= # will be assigned below
+  vINST_INSTR_LOCAL=$'With [Node.js](http://nodejs.org/) installed, install via the [npm registry](https://www.npmjs.com/):\n\n\tnpm install ${vNAME}'
+  vINST_INSTR_GLOBAL=$'With [Node.js](http://nodejs.org/) installed, install via the [npm registry](https://www.npmjs.com/) (you may have to prepend `sudo`):\n\n\tnpm install ${vNAME} -g'
+
+  # Package-specific fields that CAN'T BE GUESSED - they must be provided by the user via prompts below.
+  vDESCR=          # The package's short, one-line description.
+  vKEYWORD_LIST=   # e.g., 'json, CLI, transform'
+  vOS_LIST=        # e.g., 'darwin, linux' or '!win32'
+  vBIN_LIST=       # e.g., 'cson2json, json2cson'
+
+  break 
+done  # while : - dummy loop for potentially re-reading settings after editing
+
+# ----- END: Settings. They are read from the settings file and/or derived from other sources.
+
+
+# --- BEGIN: PROMPT USER
+
+cat <<EOF
+----------
+You are about to INITIALIZE AN npm PACKAGE AND Git REPO, through a 
+SERIES OF PROMPTS, in the current directory:
+
+  $(green "${PWD/#$HOME/~}")
+
+by default named (can be changed later):
+
+  $(green "$vNAME")
+
+- Values that require explicit input are marked with (*).
+- Default values are shown in [$(green brackets)]; for Booleans, the default is capitalized.
+  - Specify '-' to suppress a default value.
+  - Run \`$kTHIS_NAME -e\` to modify default values and settings.
+Press ^C anytime to abort.
+----------
+EOF
+
+# Prompt definitions (hints); add '(*)' to mandatory fields.
+licPrompt=$'LICENSE (SPDX ID; e.g., MIT, GPL-3.0,  LGPL-3.0, BSD-3-Clause, Apache-2.0, MPL-2.0, CDDL-1.0, EPL-1.0; "+" suffix for or-later logic, where supported)\n'
+osPrompt='SUPPORTED OSs, separated with ","; exclude with "!" prefix; blank = no restriction (darwin, freebsd, linux, sunos, win32)'
+hints=(    'PRIVATE (do not publish to npm registry)?'  'Package NAME (*)' 'Short (single-line) DESCRIPTION (*)'  'Prefer GLOBAL installation (for CLI-only projects) (*)?'   '"bin" (CLI) entries (filename(s) only, location ./bin implied; separated with "," - optional, if not global)'  'MAIN MODULE *.js file (filename only, location ./lib implied; optional, if global)'   "$osPrompt"  'KEYWORDS, separated with "," (*)' "$licPrompt"  )
+varnames=( vPRIVATE                                     vNAME              vDESCR                                  vPREFERGLOBAL                                               vBIN_LIST                                                                                                       vMAIN                                                                                 vOS_LIST      vKEYWORD_LIST                     vLIC_SPDX_ID )
+# Fill the default-values array using variable indirection.
+defVals=()
+for vn in "${varnames[@]}"; do
+  defVals+=( "${!vn}" )
+done
+
+pass=0
+while :; do  # prompt loop - it is re-entered, if the user choose to revise at the end of all prompts
+
+  (( ++pass ))
+
+  i=0
+  for (( i = 0; i < "${#varnames[@]}"; i++ )); do
+
+    vn=${varnames[i]}
+    hint=${hints[i]}
+    defVal=$(expandVars "${defVals[i]}")  # Note: some default values - notably vMAIN, need expansion, because they're derived from previous values.
+    [[ $hint =~ \(\*\) ]] && inputRequired=1 || inputRequired=0
+
+    isBool=0 defValColored=
+    if [[ $defVal =~ ^(true|false)$ ]]; then # BOOLEAN property.
+      isBool=1
+      if (( inputRequired && pass == 1 )); then
+            # Strictly speaking, this is no default value, but we do want to display the choices for Booleans.       
+            defVal='y/n'; defValColored=$defVal
+      else
+        [[ $defVal == 'true' ]] && 
+          { defVal='Y/n'; defValColored="$(green 'Y')/n"; } ||
+          { defVal='y/N'; defValColored="y/$(green 'N')"; }
+      fi
+    else # NON-Boolean property
+      # if global installation is preferred, default to a CLI with the same name as the package.
+      [[ $vn == 'vBIN_LIST' && $vPREFERGLOBAL == 'true' ]] && defVal=$vNAME
+      # if global installation is preferred, do not provide a default'main' entry for global packages
+      [[ $vn == 'vMAIN' && $vPREFERGLOBAL == 'true' ]] && defVal=
+      [[ -n $defVal ]] && defValColored=$(green "$defVal")
+    fi
+    defValSuffix="${defVal:+ [}${defValColored}${defVal:+]}"
+    valid=0
+    while (( ! valid )); do
+      # ---- Prompt the user.
+      read -er -p "${hint}${defValSuffix}: " val
+      [[ -n $val ]] && history -s "$val" # add to (session-only) history so that user can use readline features such as arrow-up to recall previous entries
+      # ---
+      if (( isBool )); then   # BOOLEAN
+        if [[ -z $val ]] && (( ! inputRequired || pass > 1 )); then # no input provided, and either not required or already provided in a previous pass.
+            # Use default value
+            [[ $defVal == Y* ]] && val='y' || val='n'
+        fi
+        case "$val" in
+          y|Y)
+            val='true'
+            valid=1
+            ;;
+          n|N)
+            val='false'
+            valid=1
+            ;;
+          *)
+            errMsg='ERROR: TRY AGAIN: '
+            [[ -z $val ]] && errMsg+='Type "y" or "n".' || errMsg+="Invalid input: $val"
+            ;;
+        esac
+      else                     # NON-Boolean
+        # Determine effective value by applying/suppressing the default value.
+        if [[ $val == '-' ]]; then # '-' indicates that no value should be used at all (instead of the default value)
+          val=
+        else # Use value specified, and fall back on default, if none.
+          val=${val:-$defVal}
+        fi
+        # *Validate (and possibly transform)* the resulting value.
+        if [[ $vn == 'vBIN_LIST' ]]; then # Turn list of CLIs (binaries) into map (object).
+          vBIN_MAP= vBIN_FIRST=
+          if [[ -n $val ]]; then
+            binArray=()
+            IFS=, read -r -a clis <<<"$val"
+            for cli in "${clis[@]}"; do
+              read -r cli <<<"$cli" # trim surrounding whitespace
+              [[ -z $vBIN_FIRST ]] && vBIN_FIRST=$cli  # save the name of the *1st* CLI - it's used in templating below to create a stub file for it.
+              binArray+=( "\"${cli}\": \"bin/${cli}\"" ) 
+            done
+            vBIN_MAP=$(toJsonObject '    ' "${binArray[@]}")  # convert list to JSON object
+            valid=1
+          fi
+        elif [[ $vn == 'vMAIN' ]]; then # Main JS module
+          if [[ -n $val ]]; then
+            # As a courtesy, let's add extension '.js', if not present.
+            egrep -qi '\.js$' <<<"$val" || val+='.js'
+            valid=1
+          fi
+        elif [[ $vn == 'vOS_LIST' ]]; then # list of supported / excluded OSs (platforms)
+          vOS_ARRAY=
+          if [[ -n $val ]]; then
+            negCount=0
+            IFS=, read -r -a osIds <<<"$val"
+            for osId in "${osIds[@]}"; do
+              read -r osId <<<"$osId" # trim surrounding whitespace
+              contains "${osId#!}" "${kOS_IDS[@]}"  || { errMsg="ERROR: TRY AGAIN: Not a valid OS identifier: $osId"; valid=0; break; }
+              [[ $osId == '!'* ]] && (( ++negCount ))
+              valid=1
+            done
+            if (( valid )); then
+              if (( negCount > 0 && negCount != ${#osIds[@]} )); then
+                errMsg="ERROR: TRY AGAIN: It makes no sense to both include and exclude OSs (including is not additive)."
+                valid=0
+              else
+                vOS_ARRAY=$(toJsonArray '    ' "$val") # convert list to JSON array
+              fi
+            fi
+          fi
+        elif [[ $vn == 'vLIC_SPDX_ID' ]]; then # license
+          if [[ -n $val ]]; then
+            if [[ $val == *'!' ]]; then # forced use (via suffix '!') of a license ID that could not be validated.
+              val=${val%!} # Note: by stripping the '!' now, validation will be reattempted if the user chooses to revise values - too exotic a use case to worry about...
+              echoWarning 'Note: Forced use of unvalidated license ID.'
+              valid=1
+            else
+              # Validate against the static list of license IDs read from the settings and obtain
+              # the true case of the ID, because the URLs on the spdx.org site are case-SENSITIVE.
+              valTrueCase=$(contains -ip "$val" "${vLIC_SPDX_IDs[@]}") && valid=1
+              if (( valid )); then
+                val=$valTrueCase
+                vLIC_SPDX_ID=$valTrueCase # assign to official variable now, because expanding vLIC_URL in the next statement relies on it.
+                licUrl=$(expandVars "$vLIC_URL")  # determine the URL to the license source text based on the value entered; !! do NOT re-assign to vLIC_URL *yet*, as that would break the ability to revise later.                
+              fi
+              (( valid )) || errMsg="'$val' is either not a valid SPDX license ID or needs to be added to the list of IDs in $kSETTINGS_FILE. To force its use, append '!' (e.g., 'MY_LIC!'). Check the link in 'LICENSE.md' afterward."
+            fi
+          fi
+        elif [[ $vn == 'vKEYWORD_LIST' ]]; then
+          vKEYWORD_LIST=$val
+          vKEYWORD_ARRAY=
+          if [[ ! (${val//,/} =~ ^[[:blank:]]*$) ]]; then # only create array if actual keywords were specified (not just whitespace or commas)
+            vKEYWORD_ARRAY=$(toJsonArray '    ' "$vKEYWORD_LIST")
+            valid=1
+          fi
+        else # other fields: no specific checks
+          [[ -n $val ]] && valid=1
+        fi
+        # See if an *empty* value is allowed.
+        if [[ -z $val ]]; then
+          errMsg="ERROR: TRY AGAIN: A non-empty value is required."
+          if [[ $vn == 'vMAIN' && $vPREFERGLOBAL == 'true' ]]; then # ok not to have a main module for global packages
+            valid=1
+          elif [[ $vn == 'vBIN_LIST' ]]; then
+            [[ -n $vBIN_MAP || $vPREFERGLOBAL == 'false' ]] && valid=1 # ok not to have bin entries for non-global packages
+          elif (( ! inputRequired )); then # input hint doesn't contain marker for required input
+            valid=1
+          fi
+        fi
+      fi
+      (( valid )) || echoError "$errMsg"  # invalid input; print error message, then reprompt.
+    done # while (( ! valid ))
+    # Assign effective value to variable at hand - note the %s, which not only makes the command more robust, but is *required* if $val is *empty*.
+    printf -v "$vn" %s "$val"
+    defVals[i]=$val  # also reassign to the `defVals` array, in case the user opts to revise values by running through the prompts again
+  done
+
+  # Expand template values:
+  # DERIVE ADDITIONAL VALUES THAT DEPEND ON VALUES THAT THE USER JUST ENTERED OR CONFIRMED.
+  for vn in "${delayedExpansionVars[@]}"; do
+    printf -v "$vn" '%s' "$(expandVars "${!vn}")"
+  done
+
+  echoStatus "Generating 'package.json'..."
+
+  # --- BEGIN: package.json TEMPLATE
+
+  dq=\"  # helper variable for including literal double quotes in variable expansions
+
+  IFS= read -d '' -r json <<EOF 
+{
+    "name": "$vNAME"
+  , "description": "$vDESCR"
+  , "private": $vPRIVATE
+  , "version": "$vVERSION"
+  ${vOS_ARRAY:+, ${dq}os${dq}:${vOS_ARRAY}}
+  , "preferGlobal": $vPREFERGLOBAL
+  ${vBIN_MAP:+, ${dq}bin${dq}:${vBIN_MAP}}
+  ${vMAIN:+, ${dq}main${dq}: ${dq}lib/${vMAIN}${dq}}
+  , "homepage": "$vHOMEPAGE"
+  , "repository":
+    {
+        "type": "git"
+      , "url": "$vREPO_URL"
+    }
+  , "bugs":
+    {
+        "url": "$vBUGS_URL"
+    }
+  , "scripts":
+    {
+        "test": "make test"
+    }
+  , "keywords":${vKEYWORD_ARRAY}
+  , "author": "$vAUTHOR"
+  ${vLIC_SPDX_ID:+, ${dq}license${dq}: ${dq}${vLIC_SPDX_ID}${dq}}
+  , "devDependencies":
+    $(sed '2,$ s/^/    /' <<<"$vDEV_DEPENDENCIES")
+}
+EOF
+
+  # --- END: package.json TEMPLATE
+
+cat <<EOF
+$json
+-------
+$(echoStatus "Write the above to 'package.json' and proceed?")
+------
+EOF
+
+  proceed=0
+  while :; do
+    read -er -p '(Y)es, (r)evise, (a)bort [y/r/a]? '
+    [[ $REPLY =~ ^[yY]$ ]] && { proceed=1; break; } # OK
+    [[ $REPLY =~ ^[aA]$ ]] && { echoError "Aborted."; exit 3; }
+    [[ $REPLY =~ ^[rR]$ ]] && { break; }
+    echoError "Invalid input; please try again ('a' or ^C to abort)."
+  done
+
+  (( proceed )) && break # confirmed
+
+  # Otherwise: run through prompts again
+
+done
+# --- END: PROMPT USER
+
+# Synthesize the installation instructions.
+if [[ $vPRIVATE == 'false' ]]; then
+  [[ $vPREFERGLOBAL == 'true' ]] && vn='vINST_INSTR_GLOBAL' || vn='vINST_INSTR_LOCAL'
+  vINST_INSTR=$(expandVars "${!vn}")
+fi
+
+# Create package.json
+printf %s "$json" > 'package.json' || die
+echoStatus '-- package.json created.'
+
+
+# Note: We copy 'Makefile' from this utility's own *root* package folder, as that is the designated master copy - it is used by this utility package itself - no need to duplicate it in ./templates/.
+cp  "$kTEMPLATE_FOLDER/../Makefile" . || die "Failed to copy Makefile."
+
+# Determine the set of template folders to copy
+  # Core templates
+tmplDirs=( "$kTEMPLATE_FOLDER" )
+  # If the package has a JS module, also include the JS templates.
+[[ -n $(json -f package.json main) ]] && tmplDirs+=( "${kTEMPLATE_FOLDER}.js" )
+  # If the package has CLIs, also include the CLI templates.
+[[ -n $(json -f package.json bin) ]] && tmplDirs+=( "${kTEMPLATE_FOLDER}.cli" )
+
+for tmplDir in "${tmplDirs[@]}"; do
+  # Copy all template files (both true templates that need expansion (e.g., README.tmpl.md) and files to be copied 'as is', (e.g., ./test/*)), without overwriting any existing files (-n).
+  # Note: By copying template files BEFORE `npm install`, we avoid npm's warning about a missing read-me.
+  #       Copying is recursive, but doesn't replace any existing files.
+  (shopt -s dotglob; cp -R -n "$tmplDir"/* .) || { (( isDirEmpty )) && die "Failed to copy template files."; } # !! with -n (no clobbering), if files are skipped during copying, cp apparently invariably sets exit code 1.
+done
+
+# Now expand all true template files (-O), without overwriting any existing target files (-n), and delete the template files afterward (-d).
+# Note that our templates contains *command substitutions* such as '$(date +%Y)', so we canNOT use -s to restrict expansions to only *variable* references.
+expandTemplate -Ond "$PWD" >/dev/null || die
+
+echoStatus '-- Template files copied and expanded.'
+
+# Install npm dependencies.
+echoStatus '-- Installing development npm dependencies ...' # since this can take a while, also report the *start* of the operation
+npm install >/dev/null || die
+# echoStatus '-- Dev npm dependencies installed.'
+
+# Git-related actions
+if [[ -d .git ]]; then
+
+  echoWarning 'WARNING: Existing Git repo found; no Git-related actions taken.'
+
+else
+
+  # Initialize the local Git repo (but don't add or commit anything yet).
+  git init >/dev/null || die
+  echoStatus '-- Local Git repository initialized.'
+
+  # Define the remote repo counterpart.
+  git remote add origin "$vREPO_URL" || die
+  echoStatus '-- Remote origin repository defined.'
+
+  if [[ $localOnly -eq 1 ]]; then
+    echoStatus '(Skipping creation of remote repository on GitHub, as requested.)'
+  elif [[ -z vGITHUB_TOKEN ]]; then
+    echoWarning "Cannot create repository on GitHub, due to missing authorization token."
+  else
+    # Create the remote counterpart repo on GitHub, using the GitHub API.
+    # If this fails, we let createGhRepo issue an error message, but don't abort.
+    createGhRepo "$vGITHUB_USERNAME" "$vGITHUB_TOKEN" "$vNAME" "$vDESCR" &&
+      echoStatus "-- Remote GitHub repository '$vGITHUB_USERNAME/$vNAME' created." ||
+      echoWarning "-- WARNING: Remote GitHub repository '$vGITHUB_USERNAME/$vNAME' NOT created."
+  fi
+
+fi
+
+cat <<EOF
+---------
+$(green "Package '$vNAME' SUCCESSFULLY INITIALIZED.")
+ - To add npm packages later:
+   - for run-time use: npm install <pkg> --save
+   - for dev use only: npm install <pkg> --save-dev
+ - Add tests to the './test' subdirectory.
+ - Run \`make list\` to see available makefile tasks.
+ - Run \`make push\` to push to the remote GitHub repo.
+ - Run \`make version\` to see the current package version.
+ - To have version numbers in source files automatically updated
+   with \`make version VER=...\` and \`make release VER=...\`,
+   ensure that the files initially contain 'v$vVERSION' - *with* the 'v'.
+---------
+EOF

@@ -1,0 +1,116 @@
+# --------
+# When placed in ~ (your home folder), this file provides configuration
+# properties for the 'make-pkg' utility.
+#
+# FORMAT NOTE: <property> = <unquoted-value>
+#  - DO NOT QUOTE VALUES.
+#  - DO NOT PUT COMMENTS AFTER VALUES.
+#  - Use \\ for literal \ chars;
+#  - If needed, use the usual \-prefixed control-chars. escapes such as \t
+#  - Leading and trailing whitespace is trimmed from values; 
+#    use \040 to explicitly represent a space.
+# --------
+
+# === GITHUB-related properties
+
+    # NOTE: Once filled in or derived from other sources, 
+    #       the properties in this section are NOT prompted for
+    #       when a new package is created.
+
+    # NOTE: If you have the `hub` utility (https://github.com/github/hub) installed
+    #       and have saved GitHub credentials there, you need NOT fill out
+    #       the settings in this section.
+
+    # REQUIRED (default: derived from `hub`'s configuration, if present)
+    #   Your username on GitHub, which is used to form the URLs for the
+    #   "homepage", "repository", and "bugs" fields in the package.json
+    #   files created for new packages.
+    # EXAMPLE VALUE
+    #   jdoe
+  vGITHUB_USERNAME=
+
+    # RECOMMENDED (default: derived from `hub`'s configuration, if present)
+    #   An OAuth (authorization) token for access to the GitHub API.
+    #   Needed for the ability to create matching remote repos on GitHub.
+    #   ONCE YOU'VE FILLED IN vGITHUB_USERNAME ABOVE, YOU CAN LET
+    #   make-pkg CREATE A TOKEN FOR YOU THE NEXT TIME IT RUNS.
+    #   To create such an OAuth (authorization) token MANUALLY, go to
+    #     https://github.com/settings/tokens/new
+    #   create a token with scope "repo", then paste it here. 
+    # EXAMPLE VALUE
+    #   a809fd3cdf072aa8c3ee7a25f9a7679193244fcd   # 40 lowercase hex. digits
+  vGITHUB_TOKEN=
+
+
+# === AUTHOR-related properties
+
+    # NOTE: Once filled in or derived from other sources, 
+    #       the properties in this section are NOT prompted for
+    #       when a new package is created.
+
+    # RECOMMENDED (default: none)
+    #   Your website, including http:// prefix, for optional inclusion in
+    #   the "author" field of the package.json files created for new packages.
+    #   NOTE:
+    #      - If you specify an epxlicit value for vAUTHOR below, this value will NOT
+    #        be used.
+    # EXAMPLE VALUE
+    #   http://example.org
+  vAUTHOR_WEBSITE=
+
+    # OPTIONAL (default: partially derived from global Git configuration)
+    #   The value for the  "author" field of the package.json files created for new packages.
+    #   NOTE: 
+    #     **BEST TO LEAVE THIS VALUE EMPTY**, because make-pkg WILL TRY TO DERIVE IT
+    #     FROM YOUR GLOBAL GIT CONFIGURATION as follows:
+    #        {user.name from git} <{user.email from git}> ({vAUTHOR_WEBSITE})
+    #     (The ({vAUTHOR_WEBSITE}) suffix is omitted, if you don't define vAUTHOR_WEBSITE above.)
+    # EXAMPLE VALUE
+    #     J. Doe <jdoe@example.org> (http://example.org)
+  vAUTHOR=
+
+
+# === DEFAULTS for NEW PACKAGES
+
+    # NOTE: Except where noted, the properties in this section ARE prompted
+    #       for whenever a new package is created, allowing you to either
+    #       accept or override the values specified here.
+
+    # RECOMMENDED (default: none)
+    #   The SPDX ID of the desired OSS license to use by default.
+    #   For the list of IDs see setting vLIC_SPDX_IDs below or https://spdx.org/licenses/
+    # EXAMPLE VALUE
+    #   MIT
+  vLIC_SPDX_ID=
+
+    # OPTIONAL (default: false)
+    #   Set this to true if you want your packages NOT to be published in
+    #   the npm registry (https://www.npmjs.com/) by default.
+    # EXAMPLE VALUE
+    #   true
+  vPRIVATE=
+
+    # OPTIONAL (default: 0.0.0; NOT prompted for)
+    #   Define the version number (without "v" prefix) to initially assign to
+    #   the "version" field of the package.json files created for new packages.
+    # EXAMPLE VALUE
+    #   0.1.0
+  vVERSION=
+
+# ==== GENERAL CONFIGURATION
+
+    # NOTE: The properties in this section are used by make-pkg for 
+    #       general operation and generally do NOT need editing - unless
+    #       something becomes outdated.
+    
+      # LIST of COMMON OSS LICENSES stated by their SPDX IDs - see https://spdx.org/licenses/
+      #
+      #    For performance reasons a static list is used.
+      #
+      #    If a license you use is not represented in this list, append it.
+      #    Note that the entire value is on a *single* line.
+      #
+      #    Retrieved on 22 Apr 2015, using the following command:
+      #      xidel -e '//*[@id="page-inner"]/table[1]/tbody/tr[*]/td[2]/code' https://spdx.org/licenses/ | awk -v ORS=, 1
+      #
+  vLIC_SPDX_IDs=Glide,Abstyles,AFL-1.1,AFL-1.2,AFL-2.0,AFL-2.1,AFL-3.0,AMPAS,APL-1.0,Adobe-Glyph,APAFML,Adobe-2006,AGPL-1.0,Afmparse,Aladdin,ADSL,AMDPLPA,ANTLR-PD,Apache-1.0,Apache-1.1,Apache-2.0,AML,APSL-1.0,APSL-1.1,APSL-1.2,APSL-2.0,Artistic-1.0,Artistic-1.0-Perl,Artistic-1.0-cl8,Artistic-2.0,AAL,Bahyph,Barr,Beerware,BitTorrent-1.0,BitTorrent-1.1,BSL-1.0,Borceux,BSD-2-Clause,BSD-2-Clause-FreeBSD,BSD-2-Clause-NetBSD,BSD-3-Clause,BSD-3-Clause-Clear,BSD-4-Clause,BSD-Protection,BSD-3-Clause-Attribution,BSD-4-Clause-UC,bzip2-1.0.5,bzip2-1.0.6,Caldera,CECILL-1.0,CECILL-1.1,CECILL-2.0,CECILL-B,CECILL-C,ClArtistic,MIT-CMU,CNRI-Python,CNRI-Python-GPL-Compatible,CPOL-1.02,CDDL-1.0,CDDL-1.1,CPAL-1.0,CPL-1.0,CATOSL-1.1,Condor-1.1,CC-BY-1.0,CC-BY-2.0,CC-BY-2.5,CC-BY-3.0,CC-BY-4.0,CC-BY-ND-1.0,CC-BY-ND-2.0,CC-BY-ND-2.5,CC-BY-ND-3.0,CC-BY-ND-4.0,CC-BY-NC-1.0,CC-BY-NC-2.0,CC-BY-NC-2.5,CC-BY-NC-3.0,CC-BY-NC-4.0,CC-BY-NC-ND-1.0,CC-BY-NC-ND-2.0,CC-BY-NC-ND-2.5,CC-BY-NC-ND-3.0,CC-BY-NC-ND-4.0,CC-BY-NC-SA-1.0,CC-BY-NC-SA-2.0,CC-BY-NC-SA-2.5,CC-BY-NC-SA-3.0,CC-BY-NC-SA-4.0,CC-BY-SA-1.0,CC-BY-SA-2.0,CC-BY-SA-2.5,CC-BY-SA-3.0,CC-BY-SA-4.0,CC0-1.0,Crossword,CUA-OPL-1.0,Cube,D-FSL-1.0,diffmark,WTFPL,DOC,Dotseqn,DSDP,dvipdfm,EPL-1.0,ECL-1.0,ECL-2.0,eGenix,EFL-1.0,EFL-2.0,MIT-advertising,MIT-enna,Entessa,ErlPL-1.1,EUDatagrid,EUPL-1.0,EUPL-1.1,Eurosym,Fair,MIT-feh,Frameworx-1.0,FreeImage,FTL,FSFUL,FSFULLR,Giftware,GL2PS,Glulxe,AGPL-3.0,GFDL-1.1,GFDL-1.2,GFDL-1.3,GPL-1.0,GPL-2.0,GPL-3.0,LGPL-2.1,LGPL-3.0,LGPL-2.0,gnuplot,gSOAP-1.3b,HaskellReport,HPND,IBM-pibs,IPL-1.0,ImageMagick,iMatix,Imlib2,IJG,Intel-ACPI,Intel,IPA,ISC,JasPer-2.0,JSON,LPPL-1.3a,LPPL-1.0,LPPL-1.1,LPPL-1.2,LPPL-1.3c,Latex2e,BSD-3-Clause-LBNL,Leptonica,Libpng,libtiff,LPL-1.02,LPL-1.0,MakeIndex,MTLL,MS-PL,MS-RL,MirOS,MITNFA,MIT,Motosoto,MPL-1.0,MPL-1.1,MPL-2.0,MPL-2.0-no-copyleft-exception,mpich2,Multics,Mup,NASA-1.3,Naumen,NBPL-1.0,NetCDF,NGPL,NOSL,NPL-1.0,NPL-1.1,Newsletr,NLPL,Nokia,NPOSL-3.0,Noweb,NRL,NTP,Nunit,OCLC-2.0,ODbL-1.0,PDDL-1.0,OGTSL,OLDAP-2.2.2,OLDAP-1.1,OLDAP-1.2,OLDAP-1.3,OLDAP-1.4,OLDAP-2.0,OLDAP-2.0.1,OLDAP-2.1,OLDAP-2.2,OLDAP-2.2.1,OLDAP-2.3,OLDAP-2.4,OLDAP-2.5,OLDAP-2.6,OLDAP-2.7,OLDAP-2.8,OML,OPL-1.0,OSL-1.0,OSL-1.1,OSL-2.0,OSL-2.1,OSL-3.0,OpenSSL,PHP-3.0,PHP-3.01,Plexus,PostgreSQL,psfrag,psutils,Python-2.0,QPL-1.0,Qhull,Rdisc,RPSL-1.0,RPL-1.1,RPL-1.5,RHeCos-1.1,RSCPL,Ruby,SAX-PD,Saxpath,SCEA,SWL,SGI-B-1.0,SGI-B-1.1,SGI-B-2.0,OFL-1.0,OFL-1.1,SimPL-2.0,Sleepycat,SNIA,SMLNJ,SugarCRM-1.1.3,SISSL,SISSL-1.2,SPL-1.0,Watcom-1.0,TCL,Unlicense,TMate,TORQUE-1.1,TOSL,Unicode-TOU,NCSA,Vim,VOSTROM,VSL-1.0,W3C,W3C-19980720,Wsuipa,Xnet,X11,Xerox,XFree86-1.1,xinetd,xpp,XSkat,YPL-1.0,YPL-1.1,Zed,Zend-2.0,Zimbra-1.3,Zimbra-1.4,Zlib,zlib-acknowledgement,ZPL-1.1,ZPL-2.0,ZPL-2.1,ICU

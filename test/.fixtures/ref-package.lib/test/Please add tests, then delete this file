@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+thisDir=./$(basename "$(cd "$(dirname "$0")"; basename "$PWD")")
+thisFile=$thisDir/$(basename "$0")
+
+cat <<EOF >&2
+MISSING TESTS
+
+Please add tests to this directory ($thisDir), then delete this file
+($thisFile).
+
+- If your package implements a CLI only:
+  Tests are expected to be *shell scripts* run by *Urchin*;
+  see https://github.com/tlevine/urchin
+  Tests for standard CLI options -h/--help and --versions
+  were added.
+
+- If your package (also) implements a JS module:
+  Tests are run with *tap*, and can either be shell scripts
+  or *.js files - see https://www.npmjs.com/package/tap
+  A sample tap test was added.
+
+(To make do without tests, simply remove all content from $thisDir)
+EOF
+
+exit 2

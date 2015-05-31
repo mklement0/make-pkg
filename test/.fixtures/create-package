@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+
+unset CDPATH tmpDir
+
+die() { 
+  echo "$0: ERROR: ${1:-"ABORTING due to unexpected error."}" 1>&2
+  [[ -n $tmpDir ]] && echo "Temp. package dir. location: $tmpDir" 1>&2
+  exit ${2:-1};
+}
+
+# ---
+# IMPORTANT: Use the following statement at the TOP OF EVERY TEST SCRIPT
+#            to ensure that this package's 'bin/' subfolder is added to the path so that
+#            this package's CLIs can be invoked by their mere filename in the rest
+#            of the script.
+# ---
+PATH=${PWD%%/test*}/bin:$PATH
+
+
+ # Change to his script's folder.
+cd "$(dirname "$BASH_SOURCE")" || die
+
+# Note that since we'll be changing to a temp. dir below
+# all subsequent paths are *absolute* ones.
+
+testRcFile="$PWD/.make-pkg-rc"
+expectScript="$PWD/expect-script"
+
+# Make sure the Expect script and the initialization file exist.
+ls "$expectScript" "$testRcFile" >/dev/null || die
+
+# Name parameters 
+isPrivate=$1
+pkgName=$2
+pkgDescr=$3
+isGlobal=$4
+binNames=$5
+mainName=$6
+supportedOSnames=$7
+keywords=$8
+licenseID=$9
+
+
+# Determine the reference package dir, based on package type.
+refPkg="$PWD/ref-package"
+if [[ -n $mainName && -n $binNames ]]; then # lib + CLI
+  refPkg+='.lib+cli'
+elif [[ $isGlobal == 'y' || -n $binNames ]]; then  # CLI only
+  refPkg+='.cli'
+else  # lib only
+  refPkg+='.lib'
+fi
+
+# Create a temp. dir...
+tmpDir=$(mktemp -d -t XXXX) || die # Works on both OSX and Linux; note: dir. name will have random extension on OSX (e.g., '.../XXXX.bJViLcM3') and none on Linux (e.g., '.../vXDA')
+# trap 'rm -rf "$tmpDir"' EXIT # Set up exit trap to automatically clean up the temp dir.
+
+# ... change to it ...
+cd "$tmpDir" || die
+
+# ... and create a package.
+# Usage:
+#                                          <script>  isPrivate pkgName pkgDescr      isGlobal binNames mainName supportedOSnames keywords           licenseID
+MAKE_PKG_RC="$testRcFile" expect "$expectScript" "$@" || die
+
+# If the target dir is *empty* afterward, something must have gone wrong.
+[[ -n $(shopt -s nullglob; printf 'x%.s' "$tmpDir"/*) ]] || die "The Expect script exited before the package was created."
+
+# Get file lists - ignore any hidden files and the 'node_modules' subdir.
+refFiles=$(cd "$refPkg"; find . \( -path '*/.*' -o -path './node_modules' \) -prune -o -print | sort)
+createdFiles=$(cd "$tmpDir"; find . \( -path '*/.*' -o -path './node_modules' \) -prune -o -print | sort)
+
+# Compare *list* of generated files to list of files in the reference package.
+# !! This means that whenever the set of files to generate changes, the reference
+# !! packages must be updated.
+diff <(echo "$createdFiles") <(echo "$refFiles") || die "Generated package is missing files ('>') or has extra files ('<')."
+
+# -- Perform some sanity checks on the *contents* of generated files.
+
+# package.json
+f='package.json'
+diff "$f" "$refPkg/$f" || die "Generated $f file doesn't match its reference: $tmpDir/$f vs. $refPkg/$f"
+
+# LICENSE.md
+f='LICENSE.md'
+thisYear=$(date +%Y)
+author=$(json -f package.json author)
+fgrep "$author" "$f" || die "'$f' does not contain expected author information, $author."
+fgrep "(c) $thisYear" "$f" || die "'$f' does not contain expected copyright year, $thisYear."
+
+# Check for main-module and CLI stubs.
+f='package.json'
+while IFS= read -r bin; do
+  [[ -x $bin && -s $bin ]] || die "Expected CLI stub not found or not executable or empty: $bin"
+done < <(json -f "$f" bin | json -Ma value)
+while IFS= read -r main; do
+  [[ -r $main && -s $main ]] || die "Expected main-module stub not found or not readable or empty: $main"
+done < <(json -f "$f" main)
+
+
+# -- Makefile tests
+ver=$(json -f package.json version)
+make version | fgrep "v${ver}" || die "'make version' does not contain the expected version number, $ver."
+
+
+# If everything succeeded, clean up the temp. dir.
+rm -rf "$tmpDir"

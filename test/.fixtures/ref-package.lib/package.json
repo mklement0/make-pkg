@@ -1,0 +1,41 @@
+{
+    "name": "foo-lib"
+  , "description": "foo-lib package"
+  , "private": false
+  , "version": "0.0.0"
+  
+  , "preferGlobal": false
+  
+  , "main": "lib/foo-lib.js"
+  , "homepage": "https://github.com/jdoe/foo-lib"
+  , "repository":
+    {
+        "type": "git"
+      , "url": "https://github.com/jdoe/foo-lib.git"
+    }
+  , "bugs":
+    {
+        "url": "https://github.com/jdoe/foo-lib/issues"
+    }
+  , "scripts":
+    {
+        "test": "make test"
+    }
+  , "keywords":
+    [
+        "foo"
+      , "bar"
+      , "lib"
+    ]
+  , "author": "J. Doe <jdoe@example.org> (http://example.org)"
+  , "license": "GPL-3.0"
+  , "devDependencies":
+    {
+      "doctoc": "^0.13.0",
+      "json": "^9.0.3",
+      "replace": "^0.3.0",
+      "semver": "^4.2.0",
+      "tap": "^0.6.0",
+      "urchin": "^0.0.5"
+    }
+}

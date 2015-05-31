@@ -1,0 +1,51 @@
+#!/usr/bin/env expect -f
+
+# Usage:
+#   <script> isPrivate pkgName pkgDescr       isGlobal binNames mainName supportedOSnames keywords       licenseID
+# Example:
+#   <script> n         foo     'foo does bar' y        ''       ''       'linux,darwin'   'foo,bar,baz'  MIT
+
+set vPrivate [lindex $argv 0]
+set vName [lindex $argv 1]
+set vDescription [lindex $argv 2]
+set vGlobal [lindex $argv 3]
+set vBin [lindex $argv 4]
+set vMain [lindex $argv 5]
+set vOSs [lindex $argv 6]
+set vKeywords [lindex $argv 7]
+set vLic [lindex $argv 8]
+
+spawn make-pkg -l
+
+expect "PRIVATE"
+send "$vPrivate\r"
+
+expect "NAME"
+send "$vName\r"
+
+expect "DESCRIPTION"
+send "$vDescription\r"
+
+expect "GLOBAL"
+send "$vGlobal\r"
+
+expect "\"bin\""
+send "$vBin\r"
+
+expect "MAIN"
+send "$vMain\r"
+
+expect "OSs"
+send "$vOSs\r"
+
+expect "KEYWORDS"
+send "$vKeywords\r"
+
+expect "LICENSE"
+send "$vLic\r"
+
+expect "(r)evise"
+send "y\r"
+
+# Wait for spawned process to finish.
+expect eof

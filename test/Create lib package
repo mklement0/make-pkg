@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+# Arguments:
+#                         isPrivate pkgName pkgDescr          isGlobal binNames mainName supportedOSnames keywords       licenseID
+./.fixtures/create-package n         foo-lib 'foo-lib package' n        ''       ''       ''               'foo,bar,lib'  GPL-3.0

@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Output version number and exit, if requested. Note that the `ver='...'` statement is automatically updated by `make version VER=<newVer>` - DO keep the 'v' suffix in the variable _definition_.
+[[ $1 == '--version' ]] && { ver='v0.0.0'; echo "${ver#v}"; exit 0; }
+
+printf '%s\n' "I AM BUT A POOR STUB. FLESH ME OUT, PLEASE." >&2
+exit 2
