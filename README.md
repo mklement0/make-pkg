@@ -191,7 +191,7 @@ This project gratefully depends on the following open-source components, accordi
 # Changelog
 
 Versioning _loosely_ complies with [semantic versioning (semver)](http://semver.org/).
-Since this utility is applied only _once_ to a given package - in order to create it -
+Since this utility is applied only _once_ to a given package - in order to initialize it -
 maintaining compatibility is less important. However, larger changes will be reflected
 in higher version-number increases.
 

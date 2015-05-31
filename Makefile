@@ -48,7 +48,7 @@ push: _need-clean-ws-or-no-untracked-files
 .PHONY: version
 version:
 ifndef VER
-	@if [[ $(MAKECMDGOALS) == 'version' ]]; then \
+	@if [[ '$(MAKECMDGOALS)' == 'version' ]]; then \
 	   printf 'Current version:\n\tv%s (from package.json)\n\t%s (from git tag)\n' `json -f package.json version` `git describe --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || echo '(none)'`; \
 	   printf 'Note:\tTo increment the version number or make a release, run:\n\t\tmake version VER=<new-version>\n\t\tmake release [VER=<new-version>]\n\twhere <new-version> is either an increment specifier (patch, minor, major,\n\tprepatch, preminor, premajor, prerelease), or an explicit <major>.<minor>.<patch> version number.\n\tIf the package.json version number is already ahead of the latest Git version tag,\n\tspecifying VER=<new-version> with `make release` is optional.\n'; \
    else \
@@ -77,13 +77,13 @@ endif
 # Increments the version number, runs tests, then commits and tags, pushes to origin, prompts to publish to the npm-registry; NOTEST=1 skips tests.
 # VER=<newVerSpec> is mandatory, unless the version number in package.json is ahead of the latest Git version tag.
 .PHONY: release
-release: _need-ver _need-origin _need-npm-credentials _need-master-branch version update-license-year test 
+release: _need-ver _need-origin _need-npm-credentials _need-master-branch version test
 	@newVer=`json -f package.json version` || exit; \
 	 echo '-- Opening changelog...'; \
 	 $(EDITOR) CHANGELOG.md; \
 	 { fgrep -q "v$$newVer" CHANGELOG.md && ! fgrep -q '???' CHANGELOG.md; } || { echo "ABORTED: No changelog entries provided for new version v$$newVer." >&2; exit 2; }; \
 	 commitMsg="v$$newVer"$$'\n'"`sed -n '/\*\*'"v$$newVer"'\*\*/,/^\* /p' CHANGELOG.md | sed '1d;$$d'`"; \
-	 $(MAKE) -f $(lastword $(MAKEFILE_LIST)) update-readme || exit; \
+	 $(MAKE) -f $(lastword $(MAKEFILE_LIST)) update-license-year update-readme || exit; \
 	 git add --update . || exit; \
 	 echo '-- Committing...'; \
 	 [[ -z $$(git status --porcelain || echo no) ]] && echo "-- (Nothing to commit.)" || { git commit -m "$$commitMsg" || exit; echo "-- v$$newVer committed."; }; \
@@ -122,7 +122,7 @@ update-license-year:
    if (( laterYear < thisYear )); then \
      replace -s '(\(c\) )([0-9]{4})(-[0-9]{4})?' '$$1$$2-'"$$thisYear" "$$f" || exit; \
      echo "NOTE: '$$f' updated to reflect current calendar year, $$thisYear."; \
-   elif [[ $(MAKECMDGOALS) == 'update-license-year' ]]; then \
+   elif [[ '$(MAKECMDGOALS)' == 'update-license-year' ]]; then \
    	 echo "('$$f' calendar year(s) are up-to-date: $$yearRange)"; \
    fi
 
