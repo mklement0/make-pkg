@@ -87,7 +87,7 @@
     #   Set this to true if you want your packages NOT to be published in
     #   the npm registry (https://www.npmjs.com/) by default.
     # EXAMPLE VALUE
-    #   true
+    #   false
   vPRIVATE=
 
     # OPTIONAL (default: 0.0.0; NOT prompted for)
@@ -96,6 +96,25 @@
     # EXAMPLE VALUE
     #   0.1.0
   vVERSION=
+
+# === DEFAULTS for TABLE OF CONTENTS for README.md
+
+    # NOTE: These settings control relate to the auto-updating TOC (table of conents)
+    #       that is included in README.md by default.
+    #       These settings are NOT prompted for during package initialization,
+    #       but you can use `make toc` later to toggle the TOC on and off.
+
+    # OPTIONAL (default: true)
+    #   Whether to include a TOC in README.md or not.
+    # EXAMPLE VALUE
+    #   true
+  vTOC_ON=
+
+    # OPTIONAL (default: '**Contents**')
+    #   The Markdown-formatted title for the TOC.
+    # EXAMPLE VALUE
+    #   **Contents**
+  vTOC_TITLE=
 
 # ==== GENERAL CONFIGURATION
 

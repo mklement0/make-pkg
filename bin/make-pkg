@@ -689,8 +689,12 @@ kTHIS_FOLDER=$(dirname "$(dirname "$(rreadlink "$BASH_SOURCE")")") # Note: assum
 kTEMPLATE_FOLDER="$kTHIS_FOLDER/templates"
 
 # !! Add the CLIs that come with this package's *dependencies* to the $PATH.
-# !! Notably, we need this for the `json` CLI.
+# !! Notably, we need this for the `json` CLI, our *runtime* dependency.
 PATH="$kTHIS_FOLDER/node_modules/.bin:$PATH"
+
+# The top-level property for 'package.json' in which to embed custom properties.
+# !! Do not change this - the Makefile tasks rely on it.
+kCUSTOM_PROPERTIES_ROOT='net_same2u'
 
 # The path to the settings file and its template.
 kSETTINGS_FILE_TEMPLATE="${kTHIS_FOLDER}/.${kTHIS_NAME}-rc"
@@ -704,7 +708,7 @@ kOS_IDS=( 'darwin' 'freebsd' 'linux' 'sunos' 'win32' )
 # ----- BEGIN: Handle the standard CLI-help and version-printing options, which exit right after doing their job.
 
 # Output version number and exit, if requested. Note that the `ver='...'` statement is automatically updated by `make version VER=<newVer>` - DO keep the 'v' suffix in the variable _definition_.
-[[ $1 == '--version' ]] && { ver='v0.1.0'; echo "$kTHIS_NAME ${ver#v}"; exit 0; }
+[[ $1 == '--version' ]] && { ver='v0.2.0'; echo "$kTHIS_NAME ${ver#v}"; exit 0; }
 
 # Command-line help.
 if [[ $1 == '--help' || $1 == '-h' ]]; then
@@ -836,7 +840,7 @@ while :; do  # dummy loop that enables re-reading the settings after having trig
       fi
     fi
 
-    # --- BEGIN: Apply HARD-CODED DEFAULTS to values not defined in the properties file.
+    # --- BEGIN: Apply HARD-CODED DEFAULTS to values potentially not defined in the properties file.
 
     vVERSION=${vVERSION:-0.0.0}  # Note: We start with version 0.0.0, so that `make version VER=...` can be used to set the first true version number.
 
@@ -847,6 +851,10 @@ while :; do  # dummy loop that enables re-reading the settings after having trig
     # Note that we require an *explicit* choice for this property, so the value 
     # here doesn't matter, except to implicitly mark the variable as a *Boolean*.
     vPREFERGLOBAL=false
+
+    # Settings relating to the inclusion of an auto-updating TOC (Table of Contents) to README.md
+    vTOC_ON=${vTOC_ON:-true}
+    vTOC_TITLE=${vTOC_TITLE:-'**Contents**'}
 
     # --- END: Apply HARD-CODED DEFAULTS to values not defined in the properties file.
 
@@ -1210,6 +1218,7 @@ while :; do  # prompt loop - it is re-entered, if the user choose to revise at t
   , "keywords":${vKEYWORD_ARRAY}
   , "author": "$vAUTHOR"
   ${vLIC_SPDX_ID:+, ${dq}license${dq}: ${dq}${vLIC_SPDX_ID}${dq}}
+  , "net_same2u": { "make_pkg": { "tocOn": $vTOC_ON, "tocTitle": "$vTOC_TITLE" } }
   , "devDependencies":
     $(sed '2,$ s/^/    /' <<<"$vDEV_DEPENDENCIES")
 }

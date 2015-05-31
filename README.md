@@ -1,5 +1,6 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
 **Contents**
 
 - [make-pkg &mdash; Introduction](#make-pkg-&mdash-introduction)
@@ -45,19 +46,25 @@ While the **_typical_ use case is to create _npm_ packages**, `make-pkg` can be 
 Note that `make-pkg` itself is no longer in the picture after having initialized a package project; instead, **ongoing tasks are invoked through the standard `make` utility**.
 These tasks are defined in file `Makefile`, which can be customized after the fact, if needed; **`make list` lists all top-level tasks**.
 
-* `make version`
+* `make version` lists or updates the package's version number:
     * `make version` lists the current package version number as well as the most recently assigned Git version tag.
     * `make version VER=<new-ver>`
         * Updates the version number in `package.json`.
         * Updates the version number in source files in the `./bin` and `./lib` subfolders, using string replacement to update `v<major>.<minor>.<patch>` instances of the old version number.
         * `<new-ver>` can either be an explicit `<major>.<minor>.<patch>` version specifier or specify how to *increment* the current version number via the component to increment: `patch`, `minor`, `major`,
   `prepatch`, `preminor`, `premajor`, or `prerelease`.
-* `make update-readme` 
-    * Pulls in the then-current contents of the `LICENSE.md` and `CHANGELOG.md` files so as to have file `README.md` be a single source of all relevant, current project information.
+* `make update-readme` updates file `README.md`:
+    * Pulls in the then-current contents of the `LICENSE.md` and `CHANGELOG.md` files so as to have file `README.md` act as a single source of all relevant, current project information.
     * If needed, updates the calendar year in `LICENSE.md`.
     * If applicable, pulls in usage information output by a project's CLI.
+    * By default, adds an auto-generated, auto-updating TOC (table of contents) at the top, courtesy of [doctoc](https://github.com/thlorenz/doctoc); see below for how to turn that off.
     * Lists the project's dependencies with links to their respective homepages.
-* `make test`
+* `make toc` turns inclusion of a TOC in `README.md` on and off.
+    * Shows the current TOC inclusion status and prompts to toggle it.
+    * To change the TOC title, modify property `net_same2u.make_pkg.tocTitle` in file `package.json`.
+    * To change the TOC settings for _future_ projects, run `make-pkg -e` and edit the `vTOC_*` settings.
+    * To update the TOC on demand (generally not necessary), run `make update-toc`.
+* `make test` runs tests:
     * Runs the tests defined in subdirectory `./test`; stubs are initially provided, as well as a couple of standard tests, if the project has a CLI.
     * If the project _only_ has a CLI, testing library [urchin](https://www.npmjs.com/package/urchin) is used; otherwise, it is [tap](https://www.npmjs.com/package/tap).
 * `make release` **integrates all of the above tasks** to publish a release; if any sub-task fails, the overall task is aborted:
@@ -196,6 +203,10 @@ maintaining compatibility is less important. However, larger changes will be ref
 in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
+
+* **v0.2.0** (2015-05-31):
+  * [new] By default, an auto-generated, auto-updating TOC (table of contents) is now placed at the top of `README.md`; behavior is configurable.
+  * [doc] Tweaked `README.md` TOC formatting to render as intended on npmjs.com.
 
 * **v0.1.0** (2015-05-31):
   * Initial release.

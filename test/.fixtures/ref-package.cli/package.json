@@ -36,6 +36,7 @@
     ]
   , "author": "J. Doe <jdoe@example.org> (http://example.org)"
   , "license": "MIT"
+  , "net_same2u": { "make_pkg": { "tocOn": true, "tocTitle": "**Contents**" } }
   , "devDependencies":
     {
       "doctoc": "^0.13.0",

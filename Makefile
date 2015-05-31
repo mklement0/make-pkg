@@ -53,7 +53,7 @@ ifndef VER
 	   printf 'Note:\tTo increment the version number or make a release, run:\n\t\tmake version VER=<new-version>\n\t\tmake release [VER=<new-version>]\n\twhere <new-version> is either an increment specifier (patch, minor, major,\n\tprepatch, preminor, premajor, prerelease), or an explicit <major>.<minor>.<patch> version number.\n\tIf the package.json version number is already ahead of the latest Git version tag,\n\tspecifying VER=<new-version> with `make release` is optional.\n'; \
    else \
    	 printf '===  RELEASING:\n\t(%s ->) v%s \n===\n' `git describe --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || echo '(none)'` `json -f package.json version`; \
-   	 printf 'Proceed (y/N)?: ' && read -re response && [[ "$$response" =~ [yY] ]] || { echo 'Aborted.' >&2; exit 2; }; \
+   	 read -p 'Proceed (y/N)?: ' -re response && [[ "$$response" =~ [yY] ]] || { echo 'Aborted.' >&2; exit 2; }; \
    fi 
 else
 	 @$(MAKE) -f $(lastword $(MAKEFILE_LIST)) _need-clean-ws-or-no-untracked-files || exit; \
@@ -106,11 +106,36 @@ release: _need-ver _need-origin _need-npm-credentials _need-master-branch versio
 #  - Replaces the '### License' chapter with the contents of LICENSE.md
 #  - Replaces the '### npm Dependencies' chapter with the current list of dependencies.
 #  - Replaces the '## Changelog' chapter with the contents of CHANGELOG.md
-#  - Finally, places a TOC at the top.
+#  - Finally, places an auto-generated TOC at the top, if configured.
 .PHONY: update-readme
-update-readme: _update-readme-usage _update-readme-license _update-readme-dependencies _update-readme-changelog
-	@doctoc --title '**Contents**' README.md >/dev/null || exit; \
-	 echo "-- README.md updated."
+update-readme: _update-readme-usage _update-readme-license _update-readme-dependencies _update-readme-changelog update-toc
+	@echo "-- README.md updated."
+
+# Updates the TOC in README.md - there is *generally* no need to call this *directly*, because the TOC is updated as part of the 'release' target.
+# However, when *toggling* the inclusion of a TOC, this target is called *directly* to:
+#   - insert a TOC after just having turned inclusion ON
+#   - remove an existing TOC after just having turned inclusion OFF
+# !! Note that a \n is prepended to the title to work around a npmjs.com rendering bug: without it, doctoc's comments would directly abut the title, which unexepctedly disables Markdown rendering (as of 31 May 2015).
+.PHONY: update-toc
+update-toc:
+	@if [[ "`json -f package.json net_same2u.make_pkg.tocOn`" == 'true' ]]; then \
+	   doctoc --title $$'\n'"`json -f package.json net_same2u.make_pkg.tocTitle`" README.md >/dev/null || exit; \
+	   [[ '$(MAKECMDGOALS)' == 'update-toc' ]] && echo "TOC in README.md updated." || :; \
+	 elif [[ '$(MAKECMDGOALS)' == 'update-toc' ]]; then \
+	   replace --count --multiline=false '<!-- START doctoc.[^>]*-->[\s\S]*?<!-- END doctoc[^>]*-->\n*' '' README.md | fgrep -q ' (1)' && \
+	     echo "TOC removed from README.md." || \
+	     echo "WARNING: Tried to remove TOC from README.md, but found none." >&2; \
+	 fi
+
+.PHONY: toc
+toc:
+	@isOn=$$([[ "`json -f package.json net_same2u.make_pkg.tocOn`" == 'true' ]] && printf 1 || printf 0); \
+	 nowState=`(( isOn )) && printf 'ON' || printf 'OFF'`; otherState=`(( isOn )) && printf 'OFF' || printf 'ON'`; \
+	 echo "Inclusion of an auto-updating TOC for README.md is currently $$nowState."; \
+	 read -re -p "Turn it $$otherState (y/N)?: " response && [[ "$$response" =~ [yY] ]] || { exit 0; }; \
+	 json -I -f package.json -e 'this.net_same2u || (this.net_same2u  = {}); this.net_same2u.make_pkg || (this.net_same2u.make_pkg = {}); this.net_same2u.make_pkg.tocOn = '`(( isOn )) && printf 'false' || printf 'true'`'; this.net_same2u.make_pkg.tocTitle || (this.net_same2u.make_pkg.tocTitle = "**Contents**")'; \
+	 $(MAKE) -f $(lastword $(MAKEFILE_LIST)) update-toc || exit
+
 
 # Updates LICENSE.md if the stated calendar year (e.g., '2015') / the end point in a calendar-year range (e.g., '2014-2015')
 # lies in the past; E.g., if the current calendary year is 2016, the first example is updated to '2015-2016', and the second
@@ -159,7 +184,7 @@ _update-readme-license:
 
 #  - Replaces the dependencies chapter with the current list of dependencies.
 .PHONY: _update-readme-dependencies
-# The exact, full text of the chapter heading to replace in README.md; watch for unintentional trailing whitespace. '#' must be represented as '\#'.
+# A regex that matches the chapter heading to replace in README.md; watch for unintentional trailing whitespace. '#' must be represented as '\#'.
 README_HEADING_DEPENDENCIES := \#+ npm dependencies
 # TO DISABLE THIS RULE, REMOVE ALL OF ITS RECIPE LINES.
 _update-readme-dependencies:
@@ -182,7 +207,7 @@ _update-readme-dependencies:
 
 #  - Replaces the changelog chapter with the contents of CHANGELOG.md
 .PHONY: _update-readme-changelog
-# The exact, full text of the chapter heading to replace in README.md; watch for unintentional trailing whitespace. '#' must be represented as '\#'.
+# A regex that matches the chapter heading to replace in README.md; watch for unintentional trailing whitespace. '#' must be represented as '\#'.
 README_HEADING_CHANGELOG := \#+ Changelog
 # TO DISABLE THIS RULE, REMOVE ALL OF ITS RECIPE LINES.
 _update-readme-changelog:

@@ -1,6 +1,6 @@
 {
   "name": "make-pkg",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Michael Klement <http://same2u.net> (mklement0@gmail.com)",
   "license": "MIT",
   "description": "Unix CLI for initializing npm package projects and implementing a release and maintenance workflow",
@@ -42,5 +42,11 @@
   },
   "dependencies": {
     "json": "^9.0.3"
+  },
+  "net_same2u": {
+    "make_pkg": {
+      "tocOn": true,
+      "tocTitle": "**Contents**"
+    }
   }
 }
