@@ -52,7 +52,7 @@ ifndef VER
 	   printf 'Current version:\n\tv%s (from package.json)\n\t%s (from git tag)\n' `json -f package.json version` `git describe --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || echo '(none)'`; \
 	   printf 'Note:\tTo increment the version number or make a release, run:\n\t\tmake version VER=<new-version>\n\t\tmake release [VER=<new-version>]\n\twhere <new-version> is either an increment specifier (patch, minor, major,\n\tprepatch, preminor, premajor, prerelease), or an explicit <major>.<minor>.<patch> version number.\n\tIf the package.json version number is already ahead of the latest Git version tag,\n\tspecifying VER=<new-version> with `make release` is optional.\n'; \
    else \
-   	 printf '===  RELEASING:\n\t(%s ->) v%s \n===\n' `git describe --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || echo '(none)'` `json -f package.json version`; \
+   	 printf '===  RELEASING:\n\t%s -> **v%s** \n===\n' `git describe --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || echo '(none)'` `json -f package.json version`; \
    	 read -p 'Proceed (y/N)?: ' -re response && [[ "$$response" =~ [yY] ]] || { echo 'Aborted.' >&2; exit 2; }; \
    fi 
 else
