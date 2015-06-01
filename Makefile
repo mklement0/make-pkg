@@ -230,7 +230,9 @@ _need-clean-ws-or-no-untracked-files:
 .PHONY: _need-ver
 _need-ver:
 ifndef VER
-	@[[ 'v'`json -f package.json version` != `git describe --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null` ]] || { printf 'ERROR: Since the version number in 'package.json' is the same as the latest Git version tag, Variable 'VER' must be defined to set the new version number.\nUse `make version` for more information and to see the current version numbers.\n' >&2; exit 1; }
+ifneq ($(FORCE),1)
+		@[[ 'v'`json -f package.json version` != `git describe --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null` ]] || { printf 'ERROR: Since the version number in 'package.json' is the same as the latest Git version tag, Variable 'VER' must be defined to specify the NEW version number.\nUse `make version` for more information and to see the current version numbers, or pass FORCE=1 to force the operation nonetheless.\n' >&2; exit 1; }
+endif	
 endif
 
 # Ensure that a remote git repo named 'origin' is defined.

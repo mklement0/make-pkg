@@ -1,3 +1,5 @@
+[![npm version](https://badge.fury.io/js/make-pkg.svg)](http://badge.fury.io/js/make-pkg)
+
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
@@ -207,7 +209,7 @@ in higher version-number increases.
 
 * **v0.2.1** (2015-05-31):
   * [new] For packages intended for publication in the npm registry, adds an [npm version badge](http://badge.fury.io/).
-  * [fix] Typo in `templates/README.tmpl.md`
+  * [fix] Typo in `templates/README.tmpl.md`.
   
 * **v0.2.0** (2015-05-31):
   * [new] By default, an auto-generated, auto-updating TOC (table of contents) is now placed at the top of `README.md`; behavior is configurable.

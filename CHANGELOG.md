@@ -9,7 +9,7 @@ in higher version-number increases.
 
 * **v0.2.1** (2015-05-31):
   * [new] For packages intended for publication in the npm registry, adds an [npm version badge](http://badge.fury.io/).
-  * [fix] Typo in `templates/README.tmpl.md`
+  * [fix] Typo in `templates/README.tmpl.md`.
   
 * **v0.2.0** (2015-05-31):
   * [new] By default, an auto-generated, auto-updating TOC (table of contents) is now placed at the top of `README.md`; behavior is configurable.
