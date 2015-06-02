@@ -5,7 +5,24 @@ $([[ $vPRIVATE == 'false' ]] && echo \[\!\[npm\ version\]\(https://badge.fury.io
 ${vDESCR}
 
 # Installation
-${vINST_INSTR:+$'\n'$vINST_INSTR$'\n'}
+
+$([[ $vPRIVATE == false && $vPREFERGLOBAL == true ]] && 
+cat <<EOF || [[ $vPRIVATE == false ]] && 
+With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed, install from the [npm registry](https://www.npmjs.com/package/${vNAME}):
+
+    [sudo] npm install ${vNAME} -g
+
+**Note**:
+
+* Whether you need `sudo` depends on how you installed Node.js / io.js and whether you've [changed permissions later](https://docs.npmjs.com/getting-started/fixing-npm-permissions); if you get an `EACCES` error, try again with `sudo`.
+* The `-g` ensures [_global_ installation](https://docs.npmjs.com/getting-started/installing-npm-packages-globally) and is needed to put `${vBIN_FIRST}` in your system's `\$PATH`.
+EOF
+cat <<EOF
+With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed, install from the [npm registry](https://www.npmjs.com/${vNAME}):
+
+    npm install ${vNAME}
+EOF
+)
 
 # Usage
 

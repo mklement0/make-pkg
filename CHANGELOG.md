@@ -7,6 +7,11 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **v0.2.2** (2015-06-01):
+  * [new] `make browse` opens the project's GitHub repository in the default browser.
+  * [enhancement] npm-registry installation instructions in generated `README.md` files improved.
+  * [doc] npm-registry installation instructions in `README.md` improved.
+
 * **v0.2.1** (2015-05-31):
   * [new] For packages intended for publication in the npm registry, adds an [npm version badge](http://badge.fury.io/).
   * [fix] Typo in `templates/README.tmpl.md`.

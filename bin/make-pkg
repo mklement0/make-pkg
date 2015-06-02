@@ -712,7 +712,7 @@ kOS_IDS=( 'darwin' 'freebsd' 'linux' 'sunos' 'win32' )
 # ----- BEGIN: Handle the standard CLI-help and version-printing options, which exit right after doing their job.
 
 # Output version number and exit, if requested. Note that the `ver='...'` statement is automatically updated by `make version VER=<newVer>` - DO keep the 'v' suffix in the variable _definition_.
-[[ $1 == '--version' ]] && { ver='v0.2.1'; echo "$kTHIS_NAME ${ver#v}"; exit 0; }
+[[ $1 == '--version' ]] && { ver='v0.2.2'; echo "$kTHIS_NAME ${ver#v}"; exit 0; }
 
 # Command-line help.
 if [[ $1 == '--help' || $1 == '-h' ]]; then
@@ -983,10 +983,6 @@ EOF
   vREPO_URL='https://github.com/${vGITHUB_USERNAME}/${vNAME}.git' # Note: The '.git' suffix is seemingly not *required* - even npm's own package doesn't have it - but we include it, as it should be used for commands such as `git add remote`.
   vBUGS_URL='https://github.com/${vGITHUB_USERNAME}/${vNAME}/issues'
   vLIC_URL='https://spdx.org/licenses/${vLIC_SPDX_ID}#licenseText'  # Note: This won't be saved to package.json, but USED IN TEMPLATE FILE "LICENSE.tmpl.md"
-    # Instructions (hints) that are referenced from README.tmpl.md
-  vINST_INSTR= # will be assigned below
-  vINST_INSTR_LOCAL=$'With [Node.js](http://nodejs.org/) installed, install via the [npm registry](https://www.npmjs.com/):\n\n\tnpm install ${vNAME}'
-  vINST_INSTR_GLOBAL=$'With [Node.js](http://nodejs.org/) installed, install via the [npm registry](https://www.npmjs.com/) (you may have to prepend `sudo`):\n\n\tnpm install ${vNAME} -g'
 
   # Package-specific fields that CAN'T BE GUESSED - they must be provided by the user via prompts below.
   vDESCR=          # The package's short, one-line description.
@@ -1253,11 +1249,6 @@ EOF
 done
 # --- END: PROMPT USER
 
-# Synthesize the installation instructions.
-if [[ $vPRIVATE == 'false' ]]; then
-  [[ $vPREFERGLOBAL == 'true' ]] && vn='vINST_INSTR_GLOBAL' || vn='vINST_INSTR_LOCAL'
-  vINST_INSTR=$(expandVars "${!vn}")
-fi
 
 # Create package.json
 printf %s "$json" > 'package.json' || die

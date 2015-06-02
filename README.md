@@ -62,7 +62,7 @@ These tasks are defined in file `Makefile`, which can be customized after the fa
     * If applicable, pulls in usage information output by a project's CLI.
     * By default, adds an auto-generated, auto-updating TOC (table of contents) at the top, courtesy of [doctoc](https://github.com/thlorenz/doctoc); see below for how to turn that off.
     * Lists the project's dependencies with links to their respective homepages.
-* **`make toc`** turns inclusion of an auto-generated, auto-updating TOC in `README.md` on and off.
+* **`make toc`** turns inclusion of an auto-generated, auto-updating TOC in `README.md` on or off.
     * Shows the current TOC inclusion status and prompts to toggle it.
     * To change the TOC title, modify property `net_same2u.make_pkg.tocTitle` in file `package.json`.
     * To change the TOC settings for _future_ projects, run `make-pkg -e` and edit the `vTOC_*` settings.
@@ -83,6 +83,8 @@ These tasks are defined in file `Makefile`, which can be customized after the fa
 * **`make push`**
     * Initiates a commit, if necessary, but aborts if there are untracked files.
     * On successful commit, pushes changes, including tags, to the branch of the same name in the remote `origin` repository.
+* **`make browse`**
+    * Opens the project's GitHub repository in the default browser; currently only supported on OSX and Debian-based Linux systems, such as Ubuntu.
 
 # Supported platforms
 
@@ -92,7 +94,7 @@ In principle, any Unix-like platform with `bash` and GNU `make` and otherwise ei
 
 ## Additional prerequisites
 
-* `npm` - as part of a [Node.js installation](https://nodejs.org/)
+* `npm` - as part of a [Node.js](https://nodejs.org/) or [io.js](https://iojs.org/) installation
 * if publishing to the [npm registry](https://www.npmjs.com) is desired, an account there
 * `git`, a [distributed version-control system](http://git-scm.com/)
 * a [GitHub account](https://github.com/)
@@ -101,9 +103,15 @@ Note that `bash` is required both for running `make-pkg` initially and later for
 
 # Installation
 
-With [node.js](http://nodejs.org/) installed, install via the [npm registry](https://www.npmjs.com/) (you may have to prepend `sudo`):
+With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed, install from the [npm registry](https://www.npmjs.com/package/make-pkg):
 
-    npm install make-pkg -g
+    [sudo] npm install make-pkg -g
+
+**Note**:
+
+* Whether you need `sudo` depends on how you installed Node.js / io.js and whether you've [changed permissions later](https://docs.npmjs.com/getting-started/fixing-npm-permissions); if you get an `EACCES` error, try again with `sudo`.
+* The `-g` ensures [_global_ installation](https://docs.npmjs.com/getting-started/installing-npm-packages-globally) and is needed to put `make-pkg` in your system's `$PATH`.
+With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed, install from the [npm registry](https://www.npmjs.com/make-pkg):
 
 # Usage
 
@@ -206,6 +214,11 @@ maintaining compatibility is less important. However, larger changes will be ref
 in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
+
+* **v0.2.2** (2015-06-01):
+  * [new] `make browse` opens the project's GitHub repository in the default browser.
+  * [enhancement] npm-registry installation instructions in generated `README.md` files improved.
+  * [doc] npm-registry installation instructions in `README.md` improved.
 
 * **v0.2.1** (2015-05-31):
   * [new] For packages intended for publication in the npm registry, adds an [npm version badge](http://badge.fury.io/).
