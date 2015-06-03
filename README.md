@@ -30,8 +30,8 @@ The projects initialized are backed by a local [Git](http://git-scm.com/) reposi
 
 While the **_typical_ use case is to create _npm_ packages**, `make-pkg` can be used to **manage GitHub-based OSS projects in general**.
 
-`make-pkg` is **opinionated**, which allows it to **simplify and automate many tasks**.
-
+`make-pkg` is **opinionated**, which allows it to **simplify and automate many tasks**.  
+For instance, `make-pkg` is managed by itself, and this read-me was scaffolded by it and is also kept up-to-date by it on every release.
 
 # Package initialization (scaffolding)
 
@@ -169,13 +169,15 @@ DESCRIPTION
     Opens this utility's settings file, $HOME/.make-pkg-rc, for editing.
 
   In addition to initializing 'package.json', this utility:
-   * initializes a local Git repository, adds a .gitignore file, defines the remote 'origin' repo
+   * initializes a local Git repository, adds a .gitignore file, defines the
+     remote 'origin' repo
    * creates a matching remote repository on GitHub
-   * instantiates several template files so as to provide a starting point for a 
-     read-me file, license file, ...
+   * instantiates several template files so as to provide a starting point for
+     a read-me file, license file, ...
    * installs stubs for the main module, the CLI, if applicable, and tests
    * installs npm dev dependencies for managing the new package
-   * installs a Makefile with a set of tasks for releasing and maintaining the package
+   * installs a Makefile with a set of tasks for releasing and maintaining the
+     package
 
   For more information, visit https://github.com/mklement0/make-pkg
 ```
@@ -214,6 +216,11 @@ maintaining compatibility is less important. However, larger changes will be ref
 in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
+
+* **v0.2.3** (2015-06-02):
+  * [fix, enhancement] CLI installation instructions in read-me template fixed & improved.
+  * [enhancement] Error-reporting helper function added to CLI test stubs.
+  * [doc] Amended this read-me.
 
 * **v0.2.2** (2015-06-01):
   * [new] `make browse` opens the project's GitHub repository in the default browser.

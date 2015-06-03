@@ -7,6 +7,11 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **v0.2.3** (2015-06-02):
+  * [fix, enhancement] CLI installation instructions in read-me template fixed & improved.
+  * [enhancement] Error-reporting helper function added to CLI test stubs.
+  * [doc] Amended this read-me.
+
 * **v0.2.2** (2015-06-01):
   * [new] `make browse` opens the project's GitHub repository in the default browser.
   * [enhancement] npm-registry installation instructions in generated `README.md` files improved.

@@ -6,9 +6,11 @@ ${vDESCR}
 
 # Installation
 
-$([[ $vPRIVATE == false && $vPREFERGLOBAL == true ]] && 
-cat <<EOF || [[ $vPRIVATE == false ]] && 
-With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed, install from the [npm registry](https://www.npmjs.com/package/${vNAME}):
+$({ [[ $vPRIVATE == false && $vPREFERGLOBAL == true ]] && 
+cat <<EOF1; } || { [[ $vPRIVATE == false ]] && cat <<EOF2; }
+## From the [npm registry](https://www.npmjs.com/package/${vNAME})
+
+With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed:
 
     [sudo] npm install ${vNAME} -g
 
@@ -16,12 +18,17 @@ With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed, inst
 
 * Whether you need `sudo` depends on how you installed Node.js / io.js and whether you've [changed permissions later](https://docs.npmjs.com/getting-started/fixing-npm-permissions); if you get an `EACCES` error, try again with `sudo`.
 * The `-g` ensures [_global_ installation](https://docs.npmjs.com/getting-started/installing-npm-packages-globally) and is needed to put `${vBIN_FIRST}` in your system's `\$PATH`.
-EOF
-cat <<EOF
+
+## Manual installation
+
+* Download [the CLI]($(v=${vREPO_URL%.git}; printf %s ${v/\/github.com\//\/raw.githubusercontent.com\/}/stable/bin/${vBIN_FIRST})) as `${vBIN_FIRST}`.
+* Make it executable with `chmod +x ${vBIN_FIRST}`.
+* Move it or symlink it to a folder in your `\$PATH`, such as `/usr/local/bin` (OSX) or `/usr/bin` (Linux).
+EOF1
 With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed, install from the [npm registry](https://www.npmjs.com/${vNAME}):
 
     npm install ${vNAME}
-EOF
+EOF2
 )
 
 # Usage

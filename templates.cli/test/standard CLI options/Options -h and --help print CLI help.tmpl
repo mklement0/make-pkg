@@ -8,6 +8,9 @@
 # ---
 PATH=\${PWD%%/test*}/bin:\$PATH
 
+# Helper function for error reporting.
+die() { (( $# > 0 )) && echo "\$*" >&2; exit 1; }
+
 # Execute your tests as shell commands below. 
 # An exit code of zero signals success, any other code signals an error
 # and causes this test to fail.

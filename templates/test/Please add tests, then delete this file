@@ -1,18 +1,30 @@
 #!/usr/bin/env bash
 
+# ---
+# IMPORTANT: Use the following statement at the TOP OF EVERY TEST SCRIPT
+#            to ensure that this package's 'bin/' subfolder is added to the path so that
+#            this package's CLIs can be invoked by their mere filename in the rest
+#            of the script.
+# ---
+PATH=${PWD%%/test*}/bin:$PATH
+
+# Helper function for error reporting.
+die() { (( $# > 0 )) && echo "$*" >&2; exit 1; }
+
+
 thisDir=./$(basename "$(cd "$(dirname "$0")"; basename "$PWD")")
 thisFile=$thisDir/$(basename "$0")
 
 cat <<EOF >&2
 MISSING TESTS
 
-Please add tests to this directory ($thisDir), then delete this file
-($thisFile).
+Please add tests to this directory ($thisDir), then delete or rename and
+repurpose this file ($thisFile).
 
 - If your package implements a CLI only:
   Tests are expected to be *shell scripts* run by *Urchin*;
   see https://github.com/tlevine/urchin
-  Tests for standard CLI options -h/--help and --versions
+  Tests for standard CLI options -h/--help and --version
   were added.
 
 - If your package (also) implements a JS module:
