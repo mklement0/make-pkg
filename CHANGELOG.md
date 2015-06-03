@@ -7,6 +7,11 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **v0.3.0** (2015-06-03):
+  * [enhancement] Improvements to the versioning workflow: new `make verinfo` task only _lists_ version numbers, whereas `make version` now always _updates_ - either by specifying `VER=...` on the command line, or by _prompting_ the user.
+  * [enhancement] TOC placement in generated `README.md` files changed to ensure that badges stay at the top.
+  * [fix] npm-registry-installation TOC entry in template for `README.md` fixed, along with corresponding chapter.
+
 * **v0.2.3** (2015-06-02):
   * [fix, enhancement] CLI installation instructions in read-me template fixed & improved.
   * [enhancement] Error-reporting helper function added to CLI test stubs.

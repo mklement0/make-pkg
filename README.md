@@ -49,30 +49,32 @@ For instance, `make-pkg` is managed by itself, and this read-me was scaffolded b
 Note that `make-pkg` itself is no longer in the picture after having initialized a package project; instead, **ongoing tasks are invoked through the standard `make` utility**.
 These tasks are defined in file `Makefile`, which can be customized after the fact, if needed; **`make list` lists all top-level tasks**.
 
-* **`make version`** lists or updates the package's version number:
-    * `make version` lists the current package version number as well as the most recently assigned Git version tag.
-    * `make version VER=<new-ver>`
+* **`make version`** and **`make verinfo`** update and list the **package's version number**, respectively:
+    * `make verinfo` lists the current version number from `package.json` as well as the most recently assigned Git version tag; the Git tag is assumed to be in sync with the latest version published in the npm registry, if applicable; the `package.json` version may be ahead, in preparation for a new release.
+    * `make version [VER=<new-ver>]` updates the package version number in `package.json` and, if present, in source files:
+        * If `VER` is not specified, the new version number is _prompted_ for.
+        * The new version number is validated, including to prevent accidental _lowering_ of the version number; however, in exceptional situations you may specify `FORCE=1` on the command line to override.
         * Updates the version number in `package.json`.
         * Updates the version number in source files in the `./bin` and `./lib` subfolders, using string replacement to update `v<major>.<minor>.<patch>` instances of the old version number.
         * `<new-ver>` can either be an explicit `<major>.<minor>.<patch>` version specifier or specify how to *increment* the current version number via the component to increment: `patch`, `minor`, `major`,
   `prepatch`, `preminor`, `premajor`, or `prerelease`.
-* **`make update-readme`** updates file `README.md`:
-    * Pulls in the then-current contents of the `LICENSE.md` and `CHANGELOG.md` files so as to have file `README.md` act as a single source of all relevant, current project information.
+* **`make update-readme`** updates file **`README.md` to act as a single source of all relevant, current project information**
+    * Pulls in the then-current contents of the `LICENSE.md` and `CHANGELOG.md` files.
     * If needed, updates the calendar year in `LICENSE.md`.
-    * If applicable, pulls in usage information output by a project's CLI.
+    * If applicable, pulls in usage information output by the project's CLI.
     * By default, adds an auto-generated, auto-updating TOC (table of contents) at the top, courtesy of [doctoc](https://github.com/thlorenz/doctoc); see below for how to turn that off.
     * Lists the project's dependencies with links to their respective homepages.
-* **`make toc`** turns inclusion of an auto-generated, auto-updating TOC in `README.md` on or off.
+* **`make toc`** turns inclusion of an **auto-generated, auto-updating TOC in `README.md`** on or off.
     * Shows the current TOC inclusion status and prompts to toggle it.
     * To change the TOC title, modify property `net_same2u.make_pkg.tocTitle` in file `package.json`.
     * To change the TOC settings for _future_ projects, run `make-pkg -e` and edit the `vTOC_*` settings.
     * To update the TOC on demand (generally not necessary), run `make update-toc`.
-* **`make test`** runs tests:
+* **`make test`** runs **tests**:
     * Runs the tests defined in subdirectory `./test`; stubs are initially provided, as well as a couple of standard tests, if the project has a CLI.
-    * If the project _only_ has a CLI, testing library [urchin](https://www.npmjs.com/package/urchin) is used; otherwise, it is [tap](https://www.npmjs.com/package/tap).
-* **`make release`** **integrates all of the above tasks** to publish a release; if any sub-task fails, the overall task is aborted:
+    * If the project _only_ has a CLI, test library [urchin](https://www.npmjs.com/package/urchin) is used; otherwise, it is [tap](https://www.npmjs.com/package/tap).
+* **`make release`** **integrates all of the above tasks** to **publish a release**; if any sub-task fails, the overall task is aborted:
     * Ensures that the active branch is `master` and that there are no untracked files.
-    * Updates the version number as described above; if the `package.json` version number is already ahead of the latest Git version tag, that version number is used as the new release's version number by default; otherwise, `make release VER=<new-ver>` must be used (see above for how to specify `<new-ver>`)
+    * If the `package.json` version number is already ahead of the latest Git version tag, that version number is offered as the new release's version number by default, but you can opt to change it. If you do, or if the package version number is not ahead, you're prompted for the new version number as described for `make version` above.
     * Runs the tests, as described above; `NOTEST=1` can be appended to the `make release` invocation to skip tests.
     * Adds a date-stamped section for the new version to `CHANGELOG.md` and opens it for editing to describe what's changed in the new release. 
     * Updates `README.md` as described above.
@@ -80,11 +82,11 @@ These tasks are defined in file `Makefile`, which can be customized after the fa
     * Creates an annotated Git version tag with the new version number; also (re)creates the lightweight 'stable' tag to mark the most recent stable version.
     * Pushes the changes and tags to the `master` branch of the remote `origin` GitHub repository.
     * Unless the project is marked as _private_ in `package.json`, publishes the new version to the [npm registry](https://www.npmjs.com/).
-* **`make push`**
+* **`make push`** **pushes changes** to the remote `origin` repository:
     * Initiates a commit, if necessary, but aborts if there are untracked files.
     * On successful commit, pushes changes, including tags, to the branch of the same name in the remote `origin` repository.
-* **`make browse`**
-    * Opens the project's GitHub repository in the default browser; currently only supported on OSX and Debian-based Linux systems, such as Ubuntu.
+* **`make browse`** opens the project's **GitHub repository in the default browser**.
+    * Note: Currently only supported on OS X and Debian-based Linux systems, such as Ubuntu.
 
 # Supported platforms
 
@@ -216,6 +218,11 @@ maintaining compatibility is less important. However, larger changes will be ref
 in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
+
+* **v0.3.0** (2015-06-03):
+  * [enhancement] Improvements to the versioning workflow: new `make verinfo` task only _lists_ version numbers, whereas `make version` now always _updates_ - either by specifying `VER=...` on the command line, or by _prompting_ the user.
+  * [enhancement] TOC placement in generated `README.md` files changed to ensure that badges stay at the top.
+  * [fix] npm-registry-installation TOC entry in template for `README.md` fixed, along with corresponding chapter.
 
 * **v0.2.3** (2015-06-02):
   * [fix, enhancement] CLI installation instructions in read-me template fixed & improved.

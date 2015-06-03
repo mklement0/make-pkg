@@ -99,8 +99,7 @@ done < <(json -f "$f" main)
 
 # -- Makefile tests
 ver=$(json -f package.json version)
-# !! Make sure that VER is empty when calling `make version` so as to avoid accidentally setting a new version - this can happen, if `make release` was invoked with an explicit VER value.
-make version VER= | fgrep "v${ver}" || die "'make version' does not contain the expected version number, $ver."
+make verinfo | grep -Fw "${ver}" || die "'make version' does not contain the expected version number, $ver."
 
 
 # If everything succeeded, clean up the temp. dir.

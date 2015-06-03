@@ -1,5 +1,8 @@
 $([[ $vPRIVATE == 'false' ]] && echo \[\!\[npm\ version\]\(https://badge.fury.io/js/$vNAME.svg\)\]\(http://badge.fury.io/js/$vNAME\))
 
+<!-- START doctoc -->
+<!-- END doctoc -->
+
 # ${vNAME} &mdash; Introduction
 
 ${vDESCR}
@@ -8,9 +11,9 @@ ${vDESCR}
 
 $({ [[ $vPRIVATE == false && $vPREFERGLOBAL == true ]] && 
 cat <<EOF1; } || { [[ $vPRIVATE == false ]] && cat <<EOF2; }
-## From the [npm registry](https://www.npmjs.com/package/${vNAME})
+## From the npm registry
 
-With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed:
+With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed, install [the package](https://www.npmjs.com/package/${vNAME}) as follows:
 
     [sudo] npm install ${vNAME} -g
 
