@@ -74,9 +74,9 @@ verinfo: version
 .PHONY: version
 version:
 	@[[ '$(MAKECMDGOALS)' == *verinfo* ]] && infoOnly=1 || infoOnly=0; \
-	 (( infoOnly )) || $(MAKE) -f $(lastword $(MAKEFILE_LIST)) _need-clean-ws-or-no-untracked-files || exit; \
+	 gitTagVer=`git describe --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || echo '(none)'` || exit; gitTagVer=$${gitTagVer#v}; \
+	 pkgVer=`json -f package.json version` || exit; \
 	 if [[ -z $$VER ]]; then \
-	  gitTagVer=`git describe --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || echo '(none)'`; gitTagVer=$${gitTagVer#v}; pkgVer=`json -f package.json version`; \
 	  printf 'CURRENT version:\n\t%s (package.json)\n\t%s (git tag)\n' "$$pkgVer" "$$gitTagVer"; \
 	  (( infoOnly )) && exit; \
 	  semver -r "> $$gitTagVer" "$$pkgVer" >/dev/null || [[ $$gitTagVer == '(none)' && $$pkgVer != '0.0.0' ]] && { alreadyBumped=1 || alreadyBumped=0; }; \
@@ -94,7 +94,7 @@ version:
 	    read -p "NEW VERSION number (just Enter to abort)?: " -re VER && { [[ -z $$VER ]] && echo 'Aborted.' >&2 && exit 2; }; \
 	  fi; \
 	fi; \
-  oldVer=`json -f package.json version` || exit; \
+  oldVer=$$pkgVer; \
   newVer=$${VER#v}; \
   if printf "$$newVer" | grep -q '^[0-9]'; then \
     semver "$$newVer" >/dev/null || { echo "Invalid semver version number specified: $$VER" >&2; exit 2; }; \
@@ -104,16 +104,16 @@ version:
   fi; \
   printf "=== About to BUMP VERSION:\n\t$$oldVer -> **$$newVer**\n===\nProceed (y/N)?: " && read -re response && [[ "$$response" = [yY] ]] || { echo 'Aborted.' >&2; exit 2; };  \
   for dir in ./bin ./lib; do [[ -d $$dir ]] && { replace --quiet --recursive "v$${oldVer//./\\.}" "v$${newVer}" "$$dir" || exit; }; done; \
-  [[ `json -f package.json version` == $$newVer ]] || { npm version $$newVer --no-git-tag-version >/dev/null && printf $$'\e[0;33m%s\e[0m\n' 'package.json' || exit; }; \
-  fgrep -q "v$$newVer" CHANGELOG.md || { { sed -n '1,/^<!--/p' CHANGELOG.md && printf %s $$'\n* **v'"$$newVer"$$'** ('"`date +'%Y-%m-%d'`"$$'):\n  * ???\n' && sed -n '1,/^<!--/d; p' CHANGELOG.md; } > CHANGELOG.tmp.md && mv CHANGELOG.tmp.md CHANGELOG.md; }; \
-  git add --update . || exit; \
+  [[ `json -f package.json version` == "$$newVer" ]] || { npm version $$newVer --no-git-tag-version >/dev/null && printf $$'\e[0;33m%s\e[0m\n' 'package.json' || exit; }; \
+  [[ $$gitTagVer == '(none)' ]] && newVerMdSnippet="**v$$newVer**" || newVerMdSnippet="**[v$$newVer](`json -f package.json repository.url | sed 's/.git$$//'`/compare/v$$gitTagVer...v$$newVer)**"; \
+  fgrep -q "v$$newVer" CHANGELOG.md || { { sed -n '1,/^<!--/p' CHANGELOG.md && printf %s $$'\n* '"$$newVerMdSnippet"$$' ('"`date +'%Y-%m-%d'`"$$'):\n  * ???\n' && sed -n '1,/^<!--/d; p' CHANGELOG.md; } > CHANGELOG.tmp.md && mv CHANGELOG.tmp.md CHANGELOG.md; }; \
   printf -- "-- Version bumped to v$$newVer in source files and package.json (only just-now updated files were printed above, if any).\n   Describe changes in CHANGELOG.md ('make release' will prompt for it).\n   To update the read-me file, run 'make update-readme' (also happens during 'make release').\n"
 
 # make release [VER=<newVerSpec>] [NOTEST=1]
 # Increments the version number, runs tests, then commits and tags, pushes to origin, prompts to publish to the npm-registry; NOTEST=1 skips tests.
 # VER=<newVerSpec> is mandatory, unless the version number in package.json is ahead of the latest Git version tag.
 .PHONY: release
-release: _need-origin _need-npm-credentials _need-master-branch _need-ver version test
+release: _need-origin _need-npm-credentials _need-master-branch _need-clean-ws-or-no-untracked-files version test
 	@newVer=`json -f package.json version` || exit; \
 	 echo '-- Opening changelog...'; \
 	 $(EDITOR) CHANGELOG.md; \
@@ -260,16 +260,6 @@ _need-master-branch:
 _need-clean-ws-or-no-untracked-files:
 	@git add --update . || exit
 	@[[ -z $$(git status --porcelain | awk -F'\0' '$$2 != " " { print $$2 }') ]] || { echo "Workspace must either be clean or contain no untracked files; please add untracked files to the index first (e.g., \`git add .\`) or delete them." >&2; exit 2; }
-
-# Ensures that the either an explicit new VER (version) number was specified or that is implied by 'package.json' already containing
-# a higher version number than the highest Git version tag.
-.PHONY: _need-ver
-_need-ver:
-ifndef VER
-ifneq ($(FORCE),1)
-		@[[ 'v'`json -f package.json version` != `git describe --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null` ]] || { printf 'ERROR: Since the version number in 'package.json' is the same as the latest Git version tag, Variable 'VER' must be defined to specify the NEW version number.\nUse `make version` for more information and to see the current version numbers, or pass FORCE=1 to force the operation nonetheless.\n' >&2; exit 1; }
-endif	
-endif
 
 # Ensure that a remote git repo named 'origin' is defined.
 .PHONY: _need-origin
