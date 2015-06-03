@@ -1,4 +1,4 @@
-[![npm version](https://badge.fury.io/js/make-pkg.svg)](http://badge.fury.io/js/make-pkg)
+[![npm version](https://img.shields.io/npm/v/make-pkg.svg)](https://npmjs.com/package/make-pkg) [![license](https://img.shields.io/npm/l/make-pkg.svg)](https://github.com/mklement0/make-pkg/blob/master/LICENSE.md)
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -218,6 +218,11 @@ maintaining compatibility is less important. However, larger changes will be ref
 in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
+
+* **[v0.3.2](https://github.com/mklement0/make-pkg/compare/v0.3.1...v0.3.2)** (2015-06-03):
+  * [new] npm-license badge added to `README.md` template for non-private packages, based on [shields.io](http://shields.io).
+  * [change] npm-version badge in `README.md` template for non-private packages switched from [badge.fury.io](https://badge.fury.io/) to [shields.io](http://shields.io), because the latter seems like a one-stop source for multiple badges.
+  * [enhancement] Small Makefile tweaks.
 
 * **[v0.3.1](https://github.com/mklement0/make-pkg/compare/v0.3.0...v0.3.1)** (2015-06-03):
   * [enhancement] Generated `CHANGELOG.md` files now have version numbers hyperlinked to GitHub for comparing each release to the previous one.

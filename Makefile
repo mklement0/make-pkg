@@ -23,16 +23,26 @@ _no-target-specified:
 list:
 	@$(MAKE) -pRrn -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | sort
 
-# Open this package's online repository URL in the default browser.
+# Open this package's online repository URL (typically, on GitHub) in the default browser.
 # Note: Currently only supports OSX and Debian-based platforms.
 .PHONY: browse
 browse:
-	@exe=; url=`json -f package.json repository.url`; \
+	@exe=; url=`json -f package.json repository.url` || exit; \
 	 [[ `uname` == 'Darwin' ]] && exe='open'; \
 	 [[ -n `command -v xdg-open` ]] && exe='xdg-open'; \
 	 [[ -n $$exe ]] || { echo "Don't know how to open $$url in the default browser on this platform." >&2; exit 1; }; \
 	 "$$exe" "$$url"
 
+# Open this package's page in the npm registry.
+# Note: Currently only supports OSX and Debian-based platforms.
+.PHONY: browse-npm
+browse-npm:
+	@exe=; [[ `json -f package.json private` == 'true' ]] && { echo "This package is marked private (not for publication in the npm registry)." >&2; exit 1; }; \
+	 url="https://www.npmjs.com/package/`json -f package.json name`" || exit; \
+	 [[ `uname` == 'Darwin' ]] && exe='open'; \
+	 [[ -n `command -v xdg-open` ]] && exe='xdg-open'; \
+	 [[ -n $$exe ]] || { echo "Don't know how to open $$url in the default browser on this platform." >&2; exit 1; }; \
+	 "$$exe" "$$url"
 
 .PHONY: test
 # To optionally skip tests in the context of target 'release', for instance, invoke with NOTEST=1; e.g.: make release NOTEST=1
@@ -90,7 +100,6 @@ version:
 	    echo "==="; \
 	    echo "Enter new version number in full or as one of: 'patch', 'minor', 'major', optionally prefixed with 'pre'."; \
 	    echo "(Alternatively, pass a value from the command line with 'VER=<new-ver>'.)"; \
-	    echo "==="; \
 	    read -p "NEW VERSION number (just Enter to abort)?: " -re VER && { [[ -z $$VER ]] && echo 'Aborted.' >&2 && exit 2; }; \
 	  fi; \
 	fi; \
@@ -119,6 +128,7 @@ release: _need-origin _need-npm-credentials _need-master-branch _need-clean-ws-o
 	 $(EDITOR) CHANGELOG.md; \
 	 { fgrep -q "v$$newVer" CHANGELOG.md && ! fgrep -q '???' CHANGELOG.md; } || { echo "ABORTED: No changelog entries provided for new version v$$newVer." >&2; exit 2; }; \
 	 commitMsg="v$$newVer"$$'\n'"`sed -n '/\*\*'"v$$newVer"'\*\*/,/^\* /p' CHANGELOG.md | sed '1d;$$d'`"; \
+	 echo "-- Updating README.md..."; \
 	 $(MAKE) -f $(lastword $(MAKEFILE_LIST)) update-license-year update-readme || exit; \
 	 git add --update . || exit; \
 	 echo '-- Committing...'; \

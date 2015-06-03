@@ -1,4 +1,7 @@
-$([[ $vPRIVATE == 'false' ]] && echo \[\!\[npm\ version\]\(https://badge.fury.io/js/$vNAME.svg\)\]\(http://badge.fury.io/js/$vNAME\))
+$([[ $vPRIVATE != 'true' ]] && cat <<EOF
+[![npm version](https://img.shields.io/npm/v/${vNAME}.svg)](https://npmjs.com/package/${vNAME}) [![license](https://img.shields.io/npm/l/${vNAME}.svg)](${vREPO_URL%.git}/blob/master/LICENSE.md)
+EOF
+)
 
 <!-- START doctoc -->
 <!-- END doctoc -->
