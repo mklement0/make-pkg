@@ -41,8 +41,8 @@ For instance, `make-pkg` is managed by itself, and this read-me was scaffolded b
 * Instantiates **templates for various standard files**: `README.md`, `LICENSE.md`, `CHANGELOG.md`
 * Creates **stubs** for the **main module file** and/or **CLIs**.
 * Creates **stubs for tests**, plus a few standard tests for CLIs.
-* For packages intended for publication in the npm registry, adds an **[npm version badge](http://badge.fury.io/)**.
-* Installs **a `Makefile` that implements a set of tasks for releasing and ongoing package maintenance**, along with supporting development-dependency packages (which are the same ones as for this utility - see [npm Dependencies](#npm-dependencies))
+* For packages intended for publication in the npm registry, adds an **npm-version badge** and **license badge**, courtesy of [shields.io](http://shields.io).
+* Installs **a `Makefile` that implements a set of tasks for releasing and ongoing package maintenance**, along with supporting development-dependency packages (which are the same ones as for this utility - see [npm dependencies](#npm-dependencies))
 
 # Package release and maintenance
 
@@ -85,7 +85,7 @@ These tasks are defined in file `Makefile`, which can be customized after the fa
 * **`make push`** **pushes changes** to the remote `origin` repository:
     * Initiates a commit, if necessary, but aborts if there are untracked files.
     * On successful commit, pushes changes, including tags, to the branch of the same name in the remote `origin` repository.
-* **`make browse`** opens the project's **GitHub repository in the default browser**.
+* **`make browse`** and **`make browse-npm`** open the project's **GitHub repository** and the **package's page in the npm registry**, respectively, in the **default browser**.
     * Note: Currently only supported on OS X and Debian-based Linux systems, such as Ubuntu.
 
 # Supported platforms
@@ -218,6 +218,9 @@ maintaining compatibility is less important. However, larger changes will be ref
 in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
+
+* **[v0.3.3](https://github.com/mklement0/make-pkg/compare/v0.3.2...v0.3.3)** (2015-06-03):
+  * [doc] Read-me updated to reflect current implementation (badges, `make browse-npm`).
 
 * **[v0.3.2](https://github.com/mklement0/make-pkg/compare/v0.3.1...v0.3.2)** (2015-06-03):
   * [new] npm-license badge added to `README.md` template for non-private packages, based on [shields.io](http://shields.io).
