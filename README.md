@@ -219,12 +219,15 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **[v0.3.4](https://github.com/mklement0/make-pkg/compare/v0.3.3...v0.3.4)** (2015-06-06):
+  * [new] License badge added to `README.md` template for non-npm packages, based on [shields.io](http://shields.io).
+
 * **[v0.3.3](https://github.com/mklement0/make-pkg/compare/v0.3.2...v0.3.3)** (2015-06-03):
   * [doc] Read-me updated to reflect current implementation (badges, `make browse-npm`).
 
 * **[v0.3.2](https://github.com/mklement0/make-pkg/compare/v0.3.1...v0.3.2)** (2015-06-03):
-  * [new] npm-license badge added to `README.md` template for non-private packages, based on [shields.io](http://shields.io).
-  * [change] npm-version badge in `README.md` template for non-private packages switched from [badge.fury.io](https://badge.fury.io/) to [shields.io](http://shields.io), because the latter seems like a one-stop source for multiple badges.
+  * [new] npm-license badge added to `README.md` template for npm packages, based on [shields.io](http://shields.io).
+  * [change] npm-version badge in `README.md` template for npm packages switched from [badge.fury.io](https://badge.fury.io/) to [shields.io](http://shields.io), because the latter seems like a one-stop source for multiple badges.
   * [enhancement] Small Makefile tweaks.
 
 * **[v0.3.1](https://github.com/mklement0/make-pkg/compare/v0.3.0...v0.3.1)** (2015-06-03):

@@ -1,6 +1,7 @@
-$([[ $vPRIVATE != 'true' ]] && cat <<EOF
+$([[ $vPRIVATE != 'true' ]] && cat <<EOF1 || cat <<EOF2
 [![npm version](https://img.shields.io/npm/v/${vNAME}.svg)](https://npmjs.com/package/${vNAME}) [![license](https://img.shields.io/npm/l/${vNAME}.svg)](${vREPO_URL%.git}/blob/master/LICENSE.md)
-EOF
+EOF1
+[![license](https://img.shields.io/badge/license-${vLIC_SPDX_ID//-/--}-blue.svg)](${vREPO_URL%.git}/blob/master/LICENSE.md)
 )
 
 <!-- START doctoc -->
