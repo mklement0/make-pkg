@@ -7,6 +7,11 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **[v0.3.5](https://github.com/mklement0/make-pkg/compare/v0.3.4...v0.3.5)** (2015-06-13):
+  * [enhancement] When initializing a CLI package, supported-platform information is now added to the installation chapter in the read-me file.
+  * [enhancement] `make release` now also opens `README.md` for editing, so as to give you a chance for a final review, and prompts for continuing after.
+  * [enhancement] `make release` now aborts if the missing-information placeholder '???' is found in `README.md`.
+
 * **[v0.3.4](https://github.com/mklement0/make-pkg/compare/v0.3.3...v0.3.4)** (2015-06-06):
   * [new] License badge added to `README.md` template for non-npm packages, based on [shields.io](http://shields.io).
 

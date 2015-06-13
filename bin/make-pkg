@@ -680,6 +680,68 @@ createGhRepo() {
   fi
 }
 
+# SYNOPSIS
+#   toNaturalLanguageList [item1 ...]
+# DESCRIPTION
+#   Converts items to natural-language list form
+#   (in English). Input items must either be supplied as operands,
+#   or line by line via stdin.
+#   1 item -> "item"
+#   2 items -> "item1 and item2"
+#   3 or more items -> "item1, item2, and item3"
+# EXAMPLES
+#   toNaturalLanguageList tic tac toe  # ->  "tic, tac, and toe"
+#   a=( 1 2 ); toNaturalLanguageList "${a[@]}"  # ->  "1 and 2"
+#   echo $'1\n2' | toNaturalLanguageList  # ->  "1 and 2"
+toNaturalLanguageList() {
+  local items=( "$@" )
+  (( ${#items[@]} == 0 )) && IFS=$'\n' read -d $'\x4' -ra items
+  case "${#items[@]}" in
+    0)
+      return;
+      ;;
+    1)
+      printf "%s\n" "${items[0]}"
+      ;;
+    2)
+      printf "%s and %s\n" "${items[0]}" "${items[1]}"
+      ;;
+    *)
+      printf '%s, ' "${items[@]: 0: ${#items[@]} -1}"
+      printf 'and %s\n' "${items[@]: -1}"
+      ;;
+  esac
+}
+
+# SYNOPSIS
+#   printf '%s\n' "${subsetOfIds[@]}" | mapKeysToValues "${values[@]}" "${keys[@]}" 
+# DESCRIPTION
+#   Maps a selection of keys to their corresponding values.
+#   Obviously, the values and keys arrays must be of the same length and have
+#   the corresponding entries at the same subscripts.
+#   Note that the values must come *first* and the input keys must
+#   be provided as *separate lines* via *stdin*.
+#   An unknown key produces an empty line of output.
+# NOTES
+#   This is a poor man's version of an associative array, based on parallel arrays of keys and values.
+#   True associative arrays in Bash 4+ could make this so much easier.
+# EXAMPLE
+#   { echo 3; echo 1; } |  mapKeysToValues one two three 1 2 3  # -> $'three\none'
+mapKeysToValues() {
+  awk '
+    FNR==1 { ++fileNdx }
+    {
+      fileNdx==1 && selKeys[FNR] = $0
+      fileNdx==2 && values[FNR] = $0 
+      fileNdx==3 && keys[$0] = values[FNR]
+    }
+    END {
+      for (i=1; i<=length(selKeys);++i) print keys[selKeys[i]]
+    }
+  ' - <(printf '%s\n' "${@: 1:$#/2}") <(printf '%s\n' "${@: 1+$#/2}")
+}
+
+
 # =================== END: Helper functions
 
 
@@ -705,14 +767,15 @@ kSETTINGS_FILE_TEMPLATE="${kTHIS_FOLDER}/.${kTHIS_NAME}-rc"
 kSETTINGS_FILE=${MAKE_PKG_RC:-~/$(basename "$kSETTINGS_FILE_TEMPLATE")}
 
 # The IDs of the OSs supported by Node.js, as reported by `process.platform`.
-kOS_IDS=( 'darwin' 'freebsd' 'linux' 'sunos' 'win32' )
+kOS_IDS=(   'darwin' 'freebsd' 'linux' 'sunos' 'win32'  )
+kOS_NAMES=( 'OSX'   'FreeBSD' 'Linux' 'SunOS' 'Windows' ) # !! Due to limitations in the templating system, these array elements mustn't contain whitespace or other chars. that need quoting for the shell.
 
 # ----- END: Script-global constants
 
 # ----- BEGIN: Handle the standard CLI-help and version-printing options, which exit right after doing their job.
 
 # Output version number and exit, if requested. Note that the `ver='...'` statement is automatically updated by `make version VER=<newVer>` - DO keep the 'v' suffix in the variable _definition_.
-[[ $1 == '--version' ]] && { ver='v0.3.4'; echo "$kTHIS_NAME ${ver#v}"; exit 0; }
+[[ $1 == '--version' ]] && { ver='v0.3.5'; echo "$kTHIS_NAME ${ver#v}"; exit 0; }
 
 # Command-line help.
 if [[ $1 == '--help' || $1 == '-h' ]]; then
@@ -1115,7 +1178,7 @@ while :; do  # prompt loop - it is re-entered, if the user choose to revise at t
             valid=1
           fi
         elif [[ $vn == 'vOS_LIST' ]]; then # list of supported / excluded OSs (platforms)
-          vOS_ARRAY=
+          vOS_ARRAY=() vOS_JSON_ARRAY=
           if [[ -n $val ]]; then
             negCount=0
             IFS=, read -r -a osIds <<<"$val"
@@ -1123,6 +1186,7 @@ while :; do  # prompt loop - it is re-entered, if the user choose to revise at t
               read -r osId <<<"$osId" # trim surrounding whitespace
               contains "${osId#!}" "${kOS_IDS[@]}"  || { errMsg="ERROR: TRY AGAIN: Not a valid OS identifier: $osId"; valid=0; break; }
               [[ $osId == '!'* ]] && (( ++negCount ))
+              vOS_ARRAY+=( "$osId" ) # note: we use vOS_ARRAY in README.tmpl.md
               valid=1
             done
             if (( valid )); then
@@ -1130,7 +1194,7 @@ while :; do  # prompt loop - it is re-entered, if the user choose to revise at t
                 errMsg="ERROR: TRY AGAIN: It makes no sense to both include and exclude OSs (including is not additive)."
                 valid=0
               else
-                vOS_ARRAY=$(toJsonArray '    ' "$val") # convert list to JSON array
+                vOS_JSON_ARRAY=$(toJsonArray '    ' "$val") # convert list to JSON array
               fi
             fi
           fi
@@ -1199,7 +1263,7 @@ while :; do  # prompt loop - it is re-entered, if the user choose to revise at t
   , "description": "$vDESCR"
   , "private": $vPRIVATE
   , "version": "$vVERSION"
-  ${vOS_ARRAY:+, ${dq}os${dq}:${vOS_ARRAY}}
+  ${vOS_JSON_ARRAY:+, ${dq}os${dq}:${vOS_JSON_ARRAY}}
   , "preferGlobal": $vPREFERGLOBAL
   ${vBIN_MAP:+, ${dq}bin${dq}:${vBIN_MAP}}
   ${vMAIN:+, ${dq}main${dq}: ${dq}lib/${vMAIN}${dq}}

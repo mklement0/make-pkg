@@ -76,12 +76,12 @@ These tasks are defined in file `Makefile`, which can be customized after the fa
     * Ensures that the active branch is `master` and that there are no untracked files.
     * If the `package.json` version number is already ahead of the latest Git version tag, that version number is offered as the new release's version number by default, but you can opt to change it. If you do, or if the package version number is not ahead, you're prompted for the new version number as described for `make version` above.
     * Runs the tests, as described above; `NOTEST=1` can be appended to the `make release` invocation to skip tests.
-    * Adds a date-stamped section for the new version to `CHANGELOG.md` and opens it for editing to describe what's changed in the new release. 
-    * Updates `README.md` as described above.
+    * Adds a date-stamped section for the new version at the beginning of `CHANGELOG.md` and opens it for editing to describe what's changed in the new release. 
+    * Updates `README.md` as described above, opens it in the system's text editor for final review, and prompts for continuing on closing it.
     * Commits, using the new changelog section as the commit message.
     * Creates an annotated Git version tag with the new version number; also (re)creates the lightweight 'stable' tag to mark the most recent stable version.
     * Pushes the changes and tags to the `master` branch of the remote `origin` GitHub repository.
-    * Unless the project is marked as _private_ in `package.json`, publishes the new version to the [npm registry](https://www.npmjs.com/).
+    * Unless the project is marked as _private_ in `package.json`, offers to publish the new version to the [npm registry](https://www.npmjs.com/).
 * **`make push`** **pushes changes** to the remote `origin` repository:
     * Initiates a commit, if necessary, but aborts if there are untracked files.
     * On successful commit, pushes changes, including tags, to the branch of the same name in the remote `origin` repository.
@@ -137,7 +137,7 @@ The following image shows an example interaction with the series of prompts pres
 
 * Flesh out the stub module (in `./lib`) and/or CLI (in `./bin`) with the actual implementation.
 * Flesh out the stub tests in `./test`.
-* Flesh out `README.md`.
+* Flesh out `README.md`, making sure to replace instances of "???", the missing-information placeholder.
 * Use the `make` tasks as described [above](#package-release-and-maintenance).
 
 ## Command-line syntax
@@ -218,6 +218,11 @@ maintaining compatibility is less important. However, larger changes will be ref
 in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
+
+* **[v0.3.5](https://github.com/mklement0/make-pkg/compare/v0.3.4...v0.3.5)** (2015-06-13):
+  * [enhancement] When initializing a CLI package, supported-platform information is now added to the installation chapter in the read-me file.
+  * [enhancement] `make release` now also opens `README.md` for editing, so as to give you a chance for a final review, and prompts for continuing after.
+  * [enhancement] `make release` now aborts if the missing-information placeholder '???' is found in `README.md`.
 
 * **[v0.3.4](https://github.com/mklement0/make-pkg/compare/v0.3.3...v0.3.4)** (2015-06-06):
   * [new] License badge added to `README.md` template for non-npm packages, based on [shields.io](http://shields.io).

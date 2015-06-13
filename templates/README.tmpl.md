@@ -7,7 +7,7 @@ EOF1
 <!-- START doctoc -->
 <!-- END doctoc -->
 
-# ${vNAME} &mdash; Introduction
+# ${vNAME} &mdash; introduction
 
 ${vDESCR}
 
@@ -15,6 +15,15 @@ ${vDESCR}
 
 $({ [[ $vPRIVATE == false && $vPREFERGLOBAL == true ]] && 
 cat <<EOF1; } || { [[ $vPRIVATE == false ]] && cat <<EOF2; }
+**Supported platforms**
+
+* When installing from the **npm registry**: $(
+    (( ${#vOS_ARRAY[@]} == 0 )) && { echo 'all platforms supported by Node.js / io.js'; exit; }
+    friendlyList=$(printf '%s\n' ${vOS_ARRAY[@]} | sed 's/^!\{0,1\}\(.*\)$/\1/' | mapKeysToValues ${kOS_NAMES[@]} ${kOS_IDS[@]} | sed 's/^\(.*\)$/**&**/' | toNaturalLanguageList)
+    [[ ${vOS_ARRAY[0]} == '!'* ]] && { echo 'all platforms supported by Node.js / io.js **except** '$friendlyList; exit; }
+    echo $friendlyList)
+* When installing **manually**: ???
+
 ## From the npm registry
 
 With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed, install [the package](https://www.npmjs.com/package/${vNAME}) as follows:

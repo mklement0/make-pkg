@@ -21,7 +21,7 @@ _no-target-specified:
 # Lists all targets defined in this makefile.
 .PHONY: list
 list:
-	@$(MAKE) -pRrn -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | sort
+	@$(MAKE) -pRrn -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | grep -Ev -e '^[^[:alnum:]]' -e '^$@$$' | sort
 
 # Open this package's online repository URL (typically, on GitHub) in the default browser.
 # Note: Currently only supports OSX and Debian-based platforms.
@@ -115,7 +115,7 @@ version:
   for dir in ./bin ./lib; do [[ -d $$dir ]] && { replace --quiet --recursive "v$${oldVer//./\\.}" "v$${newVer}" "$$dir" || exit; }; done; \
   [[ `json -f package.json version` == "$$newVer" ]] || { npm version $$newVer --no-git-tag-version >/dev/null && printf $$'\e[0;33m%s\e[0m\n' 'package.json' || exit; }; \
   [[ $$gitTagVer == '(none)' ]] && newVerMdSnippet="**v$$newVer**" || newVerMdSnippet="**[v$$newVer](`json -f package.json repository.url | sed 's/.git$$//'`/compare/v$$gitTagVer...v$$newVer)**"; \
-  fgrep -q "v$$newVer" CHANGELOG.md || { { sed -n '1,/^<!--/p' CHANGELOG.md && printf %s $$'\n* '"$$newVerMdSnippet"$$' ('"`date +'%Y-%m-%d'`"$$'):\n  * ???\n' && sed -n '1,/^<!--/d; p' CHANGELOG.md; } > CHANGELOG.tmp.md && mv CHANGELOG.tmp.md CHANGELOG.md; }; \
+  grep -Fq "v$$newVer" CHANGELOG.md || { { sed -n '1,/^<!--/p' CHANGELOG.md && printf %s $$'\n* '"$$newVerMdSnippet"$$' ('"`date +'%Y-%m-%d'`"$$'):\n  * ???\n' && sed -n '1,/^<!--/d; p' CHANGELOG.md; } > CHANGELOG.tmp.md && mv CHANGELOG.tmp.md CHANGELOG.md; }; \
   printf -- "-- Version bumped to v$$newVer in source files and package.json (only just-now updated files were printed above, if any).\n   Describe changes in CHANGELOG.md ('make release' will prompt for it).\n   To update the read-me file, run 'make update-readme' (also happens during 'make release').\n"
 
 # make release [VER=<newVerSpec>] [NOTEST=1]
@@ -126,12 +126,16 @@ release: _need-origin _need-npm-credentials _need-master-branch _need-clean-ws-o
 	@newVer=`json -f package.json version` || exit; \
 	 echo '-- Opening changelog...'; \
 	 $(EDITOR) CHANGELOG.md; \
-	 { fgrep -q "v$$newVer" CHANGELOG.md && ! fgrep -q '???' CHANGELOG.md; } || { echo "ABORTED: No changelog entries provided for new version v$$newVer." >&2; exit 2; }; \
+	 { grep -Fq "v$$newVer" CHANGELOG.md && ! grep -E '(^|[[:blank:]])\?\?\?([[:blank:]]|$$)' CHANGELOG.md; } || { echo "ABORTED: No changelog entries provided for new version v$$newVer." >&2; exit 2; }; \
 	 commitMsg="v$$newVer"$$'\n'"`sed -n '/\*\*'"v$$newVer"'\*\*/,/^\* /p' CHANGELOG.md | sed '1d;$$d'`"; \
 	 echo "-- Updating README.md..."; \
 	 $(MAKE) -f $(lastword $(MAKEFILE_LIST)) update-license-year update-readme || exit; \
-	 git add --update . || exit; \
+	 echo '-- Opening README.md for final inspection...'; \
+	 $(EDITOR) README.md; \
+	 grep -E '(^|[[:blank:]])\?\?\?([[:blank:]]|$$)' README.md && { echo "ABORTED: README.md still contains '???', the placeholder for missing information." >&2; exit 2; }; \
+	 read -re -p "Ready to COMMIT, TAG, PUSH$$([[ `json -f package.json private` != 'true' ]] && echo ", and PUBLISH (prompted for separately)") (y/N)?: " response && [[ "$$response" =~ [yY] ]] || { echo 'Aborted.' >&2; exit 2; }; \
 	 echo '-- Committing...'; \
+	 git add --update . || exit; \
 	 [[ -z $$(git status --porcelain || echo no) ]] && echo "-- (Nothing to commit.)" || { git commit -m "$$commitMsg" || exit; echo "-- v$$newVer committed."; }; \
 	 git tag -f -a -m "$$commitMsg" "v$$newVer" || exit; { git tag -f 'stable' || exit; }; \
 	 echo "-- Tag v$$newVer created."; \
@@ -139,7 +143,7 @@ release: _need-origin _need-npm-credentials _need-master-branch _need-clean-ws-o
 	 echo "-- v$$newVer pushed to origin."; \
 	 if [[ `json -f package.json private` != 'true' ]]; then \
 	 		printf "=== About to PUBLISH TO npm REGISTRY as:\n\t**`json -f package.json name`@$$newVer**\n===\nType 'publish' to proceed; anything else to abort: " && read -er response; \
-	 		[[ "$$response" == 'publish' ]] || { echo 'Aborted.' >&2; exit 2; };  \
+	 		[[ "$$response" == 'publish' ]] || { echo 'Aborted. Run `npm publish` on demand.' >&2; exit 2; };  \
 	 		npm publish || exit; \
 	 		echo "-- Published to npm."; \
 	 else \
@@ -155,7 +159,8 @@ release: _need-origin _need-npm-credentials _need-master-branch _need-clean-ws-o
 #  - Finally, places an auto-generated TOC at the top, if configured.
 .PHONY: update-readme
 update-readme: _update-readme-usage _update-readme-license _update-readme-dependencies _update-readme-changelog update-toc
-	@echo "-- README.md updated."
+	@[[ '$(MAKECMDGOALS)' == 'update-readme' ]] && grep -E '(^|[[:blank:]])\?\?\?([[:blank:]]|$$)' README.md && echo "WARNING: README.md still contains '???', the placeholder for missing information." >&2; \
+	 echo "-- README.md updated."
 
 # Updates the TOC in README.md - there is *generally* no need to call this *directly*, because the TOC is updated as part of the 'release' target.
 # However, when *toggling* the inclusion of a TOC, this target is called *directly* to:
@@ -168,7 +173,7 @@ update-toc:
 	   doctoc --title $$'\n'"`json -f package.json net_same2u.make_pkg.tocTitle`" README.md >/dev/null || exit; \
 	   [[ '$(MAKECMDGOALS)' == 'update-toc' ]] && echo "TOC in README.md updated." || :; \
 	 elif [[ '$(MAKECMDGOALS)' == 'update-toc' ]]; then \
-	   replace --count --multiline=false '<!-- START doctoc.[^>]*-->[\s\S]*?<!-- END doctoc[^>]*-->\n*' '' README.md | fgrep -q ' (1)' && \
+	   replace --count --multiline=false '<!-- START doctoc.[^>]*-->[\s\S]*?<!-- END doctoc[^>]*-->\n*' '' README.md | grep -Fq ' (1)' && \
 	     echo "TOC removed from README.md." || \
 	     echo "WARNING: Tried to remove TOC from README.md, but found none." >&2; \
 	 fi
@@ -217,7 +222,7 @@ _update-readme-usage:
 	 newText="$${CLI_HELP_CMD_DISPLAY[@]}"$$'\n\n'"$$( "$${CLI_HELP_CMD[@]}" )" || { echo "Failed to update read-me chapter: usage: invoking CLI help failed: $${CLI_HELP_CMD[@]}" >&2; exit 1; }; \
 	 newText="$${newText//\$$/$$\$$}"; \
 	 newText="$${newText//~/\~}"; \
-	 replace --count --quiet --multiline=false '(\n)(<!-- DO NOT EDIT .*usage.*?-->\n\s*?\n```\n\$$ )[\s\S]*?(\n```\n|$$)' '$$1$$2'"$$newText"'$$3' README.md | fgrep -q ' (1)' || { echo "Failed to update read-me chapter: usage." >&2; exit 1; }
+	 replace --count --quiet --multiline=false '(\n)(<!-- DO NOT EDIT .*usage.*?-->\n\s*?\n```\n\$$ )[\s\S]*?(\n```\n|$$)' '$$1$$2'"$$newText"'$$3' README.md | grep -Fq ' (1)' || { echo "Failed to update read-me chapter: usage." >&2; exit 1; }
 # !! REGRETTABLY, the ``` sequences in the line above break syntax coloring for the rest of the file in Sublime Text 3 - ?? unclear, how to work around that.
 
 #  - Replaces the '## License' chapter with the contents of LICENSE.md
@@ -226,7 +231,7 @@ _update-readme-usage:
 _update-readme-license:
 	@newText=$$'\n'"$$(< LICENSE.md)"$$'\n'; \
 	 newText="$${newText//\$$/$$\$$}"; \
-	 replace --count --quiet --multiline=false '(^|\n)(#+ License\n)[\s\S]*?(\n([ \t]*<!-- .*? -->\s*?\n)?#|$$)' '$$1$$2'"$$newText"'$$3' README.md | fgrep -q ' (1)' || { echo "Failed to update read-me chapter: license." >&2; exit 1; }
+	 replace --count --quiet --multiline=false '(^|\n)(#+ License\n)[\s\S]*?(\n([ \t]*<!-- .*? -->\s*?\n)?#|$$)' '$$1$$2'"$$newText"'$$3' README.md | grep -Fq ' (1)' || { echo "Failed to update read-me chapter: license." >&2; exit 1; }
 
 #  - Replaces the dependencies chapter with the current list of dependencies.
 .PHONY: _update-readme-dependencies
@@ -249,7 +254,7 @@ _update-readme-dependencies:
 	 done)$$'\n'; \
 	 [[ -n $$newText ]] || { echo "Failed to determine npm dependencies." >&2; exit 1; }; \
 	 newText="$${newText//\$$/$$\$$}"; \
-	 replace --count --quiet --multiline=false '(^|\n)($(README_HEADING_DEPENDENCIES)\n)[\s\S]*?(\n([ \t]*<!-- .*? -->\s*?\n)?#|$$)' '$$1$$2'"$$newText"'$$3' README.md | fgrep -q ' (1)' || { echo "Failed to update read-me chapter: npm dependencies." >&2; exit 1; }
+	 replace --count --quiet --multiline=false '(^|\n)($(README_HEADING_DEPENDENCIES)\n)[\s\S]*?(\n([ \t]*<!-- .*? -->\s*?\n)?#|$$)' '$$1$$2'"$$newText"'$$3' README.md | grep -Fq ' (1)' || { echo "Failed to update read-me chapter: npm dependencies." >&2; exit 1; }
 
 #  - Replaces the changelog chapter with the contents of CHANGELOG.md
 .PHONY: _update-readme-changelog
@@ -259,7 +264,7 @@ README_HEADING_CHANGELOG := \#+ Changelog
 _update-readme-changelog:
 	@newText=$$'\n'"$$(tail -n +3 CHANGELOG.md)"$$'\n'; \
 	 newText="$${newText//\$$/$$\$$}"; \
-	 replace --count --quiet --multiline=false '(^|\n)($(README_HEADING_CHANGELOG)\n)[\s\S]*?(\n([ \t]*<!-- .*? -->\s*?\n)?#|$$)' '$$1$$2'"$$newText"'$$3' README.md | fgrep -q ' (1)' || { echo "Failed to update read-me chapter: changelog." >&2; exit 1; }
+	 replace --count --quiet --multiline=false '(^|\n)($(README_HEADING_CHANGELOG)\n)[\s\S]*?(\n([ \t]*<!-- .*? -->\s*?\n)?#|$$)' '$$1$$2'"$$newText"'$$3' README.md | grep -Fq ' (1)' || { echo "Failed to update read-me chapter: changelog." >&2; exit 1; }
 
 .PHONY: _need-master-branch
 _need-master-branch:
@@ -274,10 +279,10 @@ _need-clean-ws-or-no-untracked-files:
 # Ensure that a remote git repo named 'origin' is defined.
 .PHONY: _need-origin
 _need-origin:
-	@git remote | fgrep -qx 'origin' || { echo "ERROR: Remote git repo 'origin' must be defined." >&2; exit 2; }
+	@git remote | grep -Fqx 'origin' || { echo "ERROR: Remote git repo 'origin' must be defined." >&2; exit 2; }
 
 # Unless the package is marked private, ensure that npm credentials have been saved.
 .PHONY: _need-npm-credentials
 _need-npm-credentials:
 	@[[ `json -f package.json private` == 'true' ]] && exit 0; \
-	 egrep -q '^//registry.npmjs.org/:_password' ~/.npmrc || { echo "ERROR: npm-registry credentials not found. Please log in with 'npm login' in order to enable publishing." >&2; exit 2; }; \
+	 grep -Eq '^//registry.npmjs.org/:_password' ~/.npmrc || { echo "ERROR: npm-registry credentials not found. Please log in with 'npm login' in order to enable publishing." >&2; exit 2; }; \
