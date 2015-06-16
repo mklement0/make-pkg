@@ -148,8 +148,8 @@ release: _need-origin _need-npm-credentials _need-master-branch _need-clean-ws-o
 	 		latestPreReleaseTag='pre'; \
 	 		printf "=== About to PUBLISH TO npm REGISTRY as `(( isPreRelease )) && printf 'PRE-RELEASE' || printf 'LATEST'` version:\n\t**`json -f package.json name`@$$newVer**\n===\nType 'publish' to proceed; anything else to abort: " && read -er response; \
 	 		[[ "$$response" == 'publish' ]] || { echo 'Aborted. Run `npm publish` on demand.' >&2; exit 2; };  \
-	 		{ (( isPreRelease )) && npm publish --tag "$latestPreReleaseTag" || npm publish; } || exit; \
-	 		echo "-- Published to npm`(( isPreRelease )) && printf " and tagged with '$$latestPreReleaseTag' to mark the latest pre-release`."; \
+	 		{ (( isPreRelease )) && npm publish --tag "$$latestPreReleaseTag" || npm publish; } || exit; \
+	 		echo "-- Published to npm`(( isPreRelease )) && printf " and tagged with '$$latestPreReleaseTag' to mark the latest pre-release"`."; \
 	 else \
 	 		echo "-- (Package marked as private; not publishing to npm registry.)"; \
 	 fi; \
