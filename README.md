@@ -57,7 +57,7 @@ These tasks are defined in file `Makefile`, which can be customized after the fa
         * Updates the version number in `package.json`.
         * Updates the version number in source files in the `./bin` and `./lib` subfolders, using string replacement to update `v<major>.<minor>.<patch>` instances of the old version number.
         * `<new-ver>` can either be an explicit `<major>.<minor>.<patch>` version specifier or specify how to *increment* the current version number via the component to increment: `patch`, `minor`, `major`,
-  `prepatch`, `preminor`, `premajor`, or `prerelease`.
+  `prepatch`, `preminor`, `premajor`, or `prerelease`; using a `pre`-prefixed specifier on a non-pre-release version number appends `-pr.0` to it.
 * **`make update-readme`** updates file **`README.md` to act as a single source of all relevant, current project information**
     * Pulls in the then-current contents of the `LICENSE.md` and `CHANGELOG.md` files.
     * If needed, updates the calendar year in `LICENSE.md`.
@@ -220,7 +220,7 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
-* **[v0.4.0-0](https://github.com/mklement0/make-pkg/compare/v0.3.5...v0.4.0-0)** (2015-06-16):
+* **[v0.4.0-pr.0](https://github.com/mklement0/make-pkg/compare/v0.3.5...v0.4.0-pr.0)** (2015-06-16):
   * [pre-release] Preparing for consistent support for pre-release versions.
 
 * **[v0.3.5](https://github.com/mklement0/make-pkg/compare/v0.3.4...v0.3.5)** (2015-06-13):

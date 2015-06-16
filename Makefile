@@ -79,6 +79,8 @@ verinfo: version
 #   Validates the new version number:
 #      If an increment specifier was given, increments from the latest package.json version number (as the version numbers stored in source files are assumed to be in sync with package.json).
 #      	 Implementation note: semver, as of v4.3.6, does not validate increment specifiers and simply defaults to 'patch' in case of an valid specifier; thus, we roll our own validation here.
+#      An increment specifier starting with 'pre' increments [to] a prerelease version number. By default, this simply appends or increments '-<num>', whereas '--preid <id>' can be used
+#      to append '-<id><num>' instead; we hard-code id 'pr', because not using an ID causes 'npm publish' to complain, because the version number looks like a semver *range*.
 #      An explicitly specified version number must be *higher* than the current one; pass variable FORCE=1 to override this in exceptional situations.
 #   Updates the version number in package.json and in source files in ./bin and ./lib.
 .PHONY: version
@@ -109,7 +111,7 @@ version:
     semver "$$newVer" >/dev/null || { echo "Invalid semver version number specified: $$VER" >&2; exit 2; }; \
     [[ "$(FORCE)" != '1' ]] && { semver -r "> $$oldVer" "$$newVer" >/dev/null || { echo "Invalid version number specified: $$VER - must be HIGHER than $$oldVer. To force this change, use FORCE=1 on the command line." >&2; exit 2; }; } \
   else \
-    [[ $$newVer =~ ^(patch|minor|major|prepatch|preminor|premajor|prerelease)$$ ]] && newVer=`semver -i "$$newVer" "$$oldVer"` || { echo "Invalid version-increment specifier: $$VER" >&2; exit 2; } \
+    [[ $$newVer =~ ^(patch|minor|major|prepatch|preminor|premajor|prerelease)$$ ]] && newVer=`semver -i "$$newVer" --preid 'pr' "$$oldVer"` || { echo "Invalid version-increment specifier: $$VER" >&2; exit 2; } \
   fi; \
   printf "=== About to BUMP VERSION:\n\t$$oldVer -> **$$newVer**\n===\nProceed (y/N)?: " && read -re response && [[ "$$response" = [yY] ]] || { echo 'Aborted.' >&2; exit 2; };  \
   for dir in ./bin ./lib; do [[ -d $$dir ]] && { replace --quiet --recursive "v$${oldVer//./\\.}" "v$${newVer}" "$$dir" || exit; }; done; \
