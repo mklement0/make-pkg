@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Helper function for error reporting.
+die() { [ $# -gt 0 ] && echo "$*" >&2; exit 1; }
+
+[ -n "$(command -v bash)" ] || die "MISSING PREREQUISITE: bash is required to run tests."
+[ -n "$(command -v expect)" ] || die "MISSING PREREQUISITE: expect (http://expect.sourceforge.net/) is required to run tests."

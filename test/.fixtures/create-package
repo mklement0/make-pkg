@@ -85,9 +85,23 @@ diff "$f" "$refPkg/$f" || die "Generated $f file doesn't match its reference: $t
 f='LICENSE.md'
 thisYear=$(date +%Y)
 author=$(json -f package.json author)
-fgrep "$author" "$f" || die "'$f' does not contain expected author information, $author."
-fgrep "(c) $thisYear" "$f" || die "'$f' does not contain expected copyright year, $thisYear."
+grep -F "$author" "$f" || die "'$f' does not contain expected author information, $author."
+grep -F "(c) $thisYear" "$f" || die "'$f' does not contain expected copyright year, $thisYear."
 
+# README.md
+f='README.md'
+# Look for top-level headings - missing ones typically imply a failure during template expansion
+while IFS= read -r headingRegex; do
+  grep -Ei "$headingRegex" "$f" || die "'$f' does not contain the expected heading: '$headingRegex'"
+done <<'EOF'
+^# .*introduction
+^# .*installation
+^# .*usage
+^# .*license
+^# .*changelog
+EOF
+
+# package.json
 # Check for main-module and CLI stubs.
 f='package.json'
 while IFS= read -r bin; do
@@ -96,6 +110,7 @@ done < <(json -f "$f" bin | json -Ma value)
 while IFS= read -r main; do
   [[ -r $main && -s $main ]] || die "Expected main-module stub not found or not readable or empty: $main"
 done < <(json -f "$f" main)
+
 
 # -- Makefile tests
 ver=$(json -f package.json version)

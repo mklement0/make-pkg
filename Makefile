@@ -140,7 +140,7 @@ release: _need-origin _need-npm-credentials _need-master-branch _need-clean-ws-o
 	 echo '-- Committing...'; \
 	 git add --update . || exit; \
 	 [[ -z $$(git status --porcelain || echo no) ]] && echo "-- (Nothing to commit.)" || { git commit -m "$$commitMsg" || exit; echo "-- v$$newVer committed."; }; \
-	 git tag -f -a -m "$$commitMsg" "v$$newVer" || exit; { git tag -f "`(( isPreRelease )) && printf 'prerelease' || printf 'stable'`" || exit; }; \
+	 git tag -f -a -m "$$commitMsg" "v$$newVer" || exit; { git tag -f "`(( isPreRelease )) && printf 'pre' || printf 'stable'`" || exit; }; \
 	 echo "-- Tag v$$newVer created."; \
 	 git push origin master || exit; git push -f origin master --tags; \
 	 echo "-- v$$newVer pushed to origin."; \

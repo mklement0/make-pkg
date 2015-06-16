@@ -79,7 +79,7 @@ These tasks are defined in file `Makefile`, which can be customized after the fa
     * Adds a date-stamped section for the new version at the beginning of `CHANGELOG.md` and opens it for editing to describe what's changed in the new release. 
     * Updates `README.md` as described above, opens it in the system's text editor for final review, and prompts for continuing on closing it.
     * Commits, using the new changelog section as the commit message.
-    * Creates an annotated Git version tag with the new version number; also (re)creates the lightweight 'stable' tag to mark the most recent stable version, or, analogously, the 'prerelease' tag for pre-release versions.
+    * Creates an annotated Git version tag with the new version number; also (re)creates the lightweight 'stable' tag to mark the most recent stable version, or, analogously, the 'pre' tag for pre-release versions.
     * Pushes the changes and tags to the `master` branch of the remote `origin` GitHub repository.
     * Unless the project is marked as _private_ in `package.json`, offers to publish the new version to the [npm registry](https://www.npmjs.com/).
         * _Pre-release_ versions are published with `--tag pre`, so as to make the latest pre-release version installable on demand with `npm install <pgk>@pre`, while retaining the most recent _release_ version as the default version.
@@ -220,8 +220,12 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
-* **[v0.4.1-1](https://github.com/mklement0/make-pkg/compare/v0.4.1-0...v0.4.1-1)** (2015-06-16):
-  * [prerelease] Pre-release tag changed to fixed string 'pre' so as to have that track the most recent pre-release.
+* **[v0.4.1-2](https://github.com/mklement0/make-pkg/compare/v0.4.1-1...v0.4.1-2)** (2015-06-16):
+  * [change] Pre-release npm tag changed to fixed string 'pre' so as to have that track the most recent pre-release.
+  * [change] Pre-release Git tag analogously changed to 'pre'.
+  * [fix] `README.md` template is now again correctly expanded in Bash 4.x.
+  * [enhancement] New test for test prerequisites added. 
+  * [dev] Tests improved to detect corrupt of `README.md` template on expansion.
 
 * **[v0.4.0](https://github.com/mklement0/make-pkg/compare/v0.3.5...v0.4.0)** (2015-06-16):
   * [new] Consistent support for pre-release versions added.
