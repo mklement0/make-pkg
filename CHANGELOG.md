@@ -7,6 +7,9 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **[v0.4.1-0](https://github.com/mklement0/make-pkg/compare/v0.4.0...v0.4.1-0)** (2015-06-16):
+  * [prerelease] Pre-release tag changed to fixed string 'pre' so as to have that track the most recent pre-release.
+
 * **[v0.4.0](https://github.com/mklement0/make-pkg/compare/v0.3.5...v0.4.0)** (2015-06-16):
   * [new] Consistent support for pre-release versions added.
   * [enhancement] New CLI test template added for testing behavior with unknown options.

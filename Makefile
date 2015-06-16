@@ -81,7 +81,7 @@ verinfo: version
 #      	 Implementation note: semver, as of v4.3.6, does not validate increment specifiers and simply defaults to 'patch' in case of an valid specifier; thus, we roll our own validation here.
 #      An increment specifier starting with 'pre' increments [to] a prerelease version number. By default, this simply appends or increments '-<num>', whereas '--preid <id>' can be used
 #      to append '-<id><num>' instead; however, we don't expose that, at least for now, though the user may specify an explicit, full pre-release version number.
-#      Note that such a version number must be prefixed when passed to npm publish --tags, as the latter otherwise complains that the version looks like a semver *range*.
+#      We use tag 'pre' with npm publish --tag, so as to have the latest prerelease be installable with <pkg>@pre, analogous to the (implicit) 'latest' tag that tracks production releases.
 #      An explicitly specified version number must be *higher* than the current one; pass variable FORCE=1 to override this in exceptional situations.
 #   Updates the version number in package.json and in source files in ./bin and ./lib.
 .PHONY: version
@@ -145,10 +145,11 @@ release: _need-origin _need-npm-credentials _need-master-branch _need-clean-ws-o
 	 git push origin master || exit; git push -f origin master --tags; \
 	 echo "-- v$$newVer pushed to origin."; \
 	 if [[ `json -f package.json private` != 'true' ]]; then \
+	 		latestPreReleaseTag='pre'; \
 	 		printf "=== About to PUBLISH TO npm REGISTRY as `(( isPreRelease )) && printf 'PRE-RELEASE' || printf 'LATEST'` version:\n\t**`json -f package.json name`@$$newVer**\n===\nType 'publish' to proceed; anything else to abort: " && read -er response; \
 	 		[[ "$$response" == 'publish' ]] || { echo 'Aborted. Run `npm publish` on demand.' >&2; exit 2; };  \
-	 		{ (( isPreRelease )) && npm publish --tag "pr$$newVer" || npm publish; } || exit; \
-	 		echo "-- Published to npm."; \
+	 		{ (( isPreRelease )) && npm publish --tag "$latestPreReleaseTag" || npm publish; } || exit; \
+	 		echo "-- Published to npm`(( isPreRelease )) && printf " and tagged with '$$latestPreReleaseTag' to mark the latest pre-release`."; \
 	 else \
 	 		echo "-- (Package marked as private; not publishing to npm registry.)"; \
 	 fi; \
