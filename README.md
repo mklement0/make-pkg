@@ -220,7 +220,7 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
-* **[v0.4.1-2](https://github.com/mklement0/make-pkg/compare/v0.4.1-1...v0.4.1-2)** (2015-06-16):
+* **[v0.5.0](https://github.com/mklement0/make-pkg/compare/v0.4.0...v0.5.0)** (2015-06-16):
   * [change] Pre-release npm tag changed to fixed string 'pre' so as to have that track the most recent pre-release.
   * [change] Pre-release Git tag analogously changed to 'pre'.
   * [fix] `README.md` template is now again correctly expanded in Bash 4.x.
