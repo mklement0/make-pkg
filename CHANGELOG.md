@@ -7,7 +7,7 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
-* **[v0.4.0-pr.0](https://github.com/mklement0/make-pkg/compare/v0.3.5...v0.4.0-pr.0)** (2015-06-16):
+* **[v0.4.0-2](https://github.com/mklement0/make-pkg/compare/v0.3.5...v0.4.0-2)** (2015-06-16):
   * [pre-release] Preparing for consistent support for pre-release versions.
 
 * **[v0.3.5](https://github.com/mklement0/make-pkg/compare/v0.3.4...v0.3.5)** (2015-06-13):

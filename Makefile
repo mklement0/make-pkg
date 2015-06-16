@@ -80,7 +80,8 @@ verinfo: version
 #      If an increment specifier was given, increments from the latest package.json version number (as the version numbers stored in source files are assumed to be in sync with package.json).
 #      	 Implementation note: semver, as of v4.3.6, does not validate increment specifiers and simply defaults to 'patch' in case of an valid specifier; thus, we roll our own validation here.
 #      An increment specifier starting with 'pre' increments [to] a prerelease version number. By default, this simply appends or increments '-<num>', whereas '--preid <id>' can be used
-#      to append '-<id><num>' instead; we hard-code id 'pr', because not using an ID causes 'npm publish' to complain, because the version number looks like a semver *range*.
+#      to append '-<id><num>' instead; however, we don't expose that, at least for now, though the user may specify an explicit, full pre-release version number.
+#      Note that such a version number must be prefixed when passed to npm publish --tags, as the latter otherwise complains that the version looks like a semver *range*.
 #      An explicitly specified version number must be *higher* than the current one; pass variable FORCE=1 to override this in exceptional situations.
 #   Updates the version number in package.json and in source files in ./bin and ./lib.
 .PHONY: version
@@ -111,7 +112,7 @@ version:
     semver "$$newVer" >/dev/null || { echo "Invalid semver version number specified: $$VER" >&2; exit 2; }; \
     [[ "$(FORCE)" != '1' ]] && { semver -r "> $$oldVer" "$$newVer" >/dev/null || { echo "Invalid version number specified: $$VER - must be HIGHER than $$oldVer. To force this change, use FORCE=1 on the command line." >&2; exit 2; }; } \
   else \
-    [[ $$newVer =~ ^(patch|minor|major|prepatch|preminor|premajor|prerelease)$$ ]] && newVer=`semver -i "$$newVer" --preid 'pr' "$$oldVer"` || { echo "Invalid version-increment specifier: $$VER" >&2; exit 2; } \
+    [[ $$newVer =~ ^(patch|minor|major|prepatch|preminor|premajor|prerelease)$$ ]] && newVer=`semver -i "$$newVer" "$$oldVer"` || { echo "Invalid version-increment specifier: $$VER" >&2; exit 2; } \
   fi; \
   printf "=== About to BUMP VERSION:\n\t$$oldVer -> **$$newVer**\n===\nProceed (y/N)?: " && read -re response && [[ "$$response" = [yY] ]] || { echo 'Aborted.' >&2; exit 2; };  \
   for dir in ./bin ./lib; do [[ -d $$dir ]] && { replace --quiet --recursive "v$${oldVer//./\\.}" "v$${newVer}" "$$dir" || exit; }; done; \
@@ -146,7 +147,7 @@ release: _need-origin _need-npm-credentials _need-master-branch _need-clean-ws-o
 	 if [[ `json -f package.json private` != 'true' ]]; then \
 	 		printf "=== About to PUBLISH TO npm REGISTRY as `(( isPreRelease )) && printf 'PRE-RELEASE' || printf 'LATEST'` version:\n\t**`json -f package.json name`@$$newVer**\n===\nType 'publish' to proceed; anything else to abort: " && read -er response; \
 	 		[[ "$$response" == 'publish' ]] || { echo 'Aborted. Run `npm publish` on demand.' >&2; exit 2; };  \
-	 		{ (( isPreRelease )) && npm publish --tag "$$newVer" || npm publish; } || exit; \
+	 		{ (( isPreRelease )) && npm publish --tag "pr$$newVer" || npm publish; } || exit; \
 	 		echo "-- Published to npm."; \
 	 else \
 	 		echo "-- (Package marked as private; not publishing to npm registry.)"; \
