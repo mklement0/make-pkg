@@ -1,6 +1,6 @@
 {
   "name": "make-pkg",
-  "version": "0.3.5",
+  "version": "0.4.0-0",
   "author": "Michael Klement <http://same2u.net> (mklement0@gmail.com)",
   "license": "MIT",
   "description": "Unix CLI for initializing npm package projects and implementing a release and maintenance workflow",

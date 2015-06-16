@@ -79,9 +79,10 @@ These tasks are defined in file `Makefile`, which can be customized after the fa
     * Adds a date-stamped section for the new version at the beginning of `CHANGELOG.md` and opens it for editing to describe what's changed in the new release. 
     * Updates `README.md` as described above, opens it in the system's text editor for final review, and prompts for continuing on closing it.
     * Commits, using the new changelog section as the commit message.
-    * Creates an annotated Git version tag with the new version number; also (re)creates the lightweight 'stable' tag to mark the most recent stable version.
+    * Creates an annotated Git version tag with the new version number; also (re)creates the lightweight 'stable' tag to mark the most recent stable version, or, analogously, the 'prerelease' tag for pre-release versions.
     * Pushes the changes and tags to the `master` branch of the remote `origin` GitHub repository.
     * Unless the project is marked as _private_ in `package.json`, offers to publish the new version to the [npm registry](https://www.npmjs.com/).
+        * _Pre-release_ versions are published with `--tag` so as to make them available on demand with their explicit version, while retaining the most recent _release_ version as the default version.
 * **`make push`** **pushes changes** to the remote `origin` repository:
     * Initiates a commit, if necessary, but aborts if there are untracked files.
     * On successful commit, pushes changes, including tags, to the branch of the same name in the remote `origin` repository.
@@ -218,6 +219,9 @@ maintaining compatibility is less important. However, larger changes will be ref
 in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
+
+* **[v0.4.0-0](https://github.com/mklement0/make-pkg/compare/v0.3.5...v0.4.0-0)** (2015-06-16):
+  * [pre-release] Preparing for consistent support for pre-release versions.
 
 * **[v0.3.5](https://github.com/mklement0/make-pkg/compare/v0.3.4...v0.3.5)** (2015-06-13):
   * [enhancement] When initializing a CLI package, supported-platform information is now added to the installation chapter in the read-me file.

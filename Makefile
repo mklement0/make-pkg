@@ -89,16 +89,16 @@ version:
 	 if [[ -z $$VER ]]; then \
 	  printf 'CURRENT version:\n\t%s (package.json)\n\t%s (git tag)\n' "$$pkgVer" "$$gitTagVer"; \
 	  (( infoOnly )) && exit; \
-	  semver -r "> $$gitTagVer" "$$pkgVer" >/dev/null || [[ $$gitTagVer == '(none)' && $$pkgVer != '0.0.0' ]] && { alreadyBumped=1 || alreadyBumped=0; }; \
+	  [[ $$pkgVer != "$$gitTagVer" && $$pkgVer != '0.0.0' ]] && { alreadyBumped=1 || alreadyBumped=0; }; \
 	  if [[ '$(MAKECMDGOALS)' == 'release' && $$alreadyBumped -eq 1 ]]; then \
-	    printf '===  RELEASING:\n\t%s -> **%s** \n===\n' "$$gitTagVer" "$$pkgVer"; \
+	    printf "=== `[[ $$pkgVer == *-* ]] && printf 'PRE-'`RELEASING:\n\t%s -> **%s** \n===\n" "$$gitTagVer" "$$pkgVer"; \
 	    read -p '(Y)es or (c)hange (y/c/N)?: ' -re response && [[ "$$response" == [yYcC] ]] || { echo 'Aborted.' >&2; exit 2; }; \
 	    [[ $$response =~ [yY] ]] && exit 0; \
 	    alreadyBumped=0; \
 	  fi; \
 	  if [[ '$(MAKECMDGOALS)' == 'version' || $$alreadyBumped -eq 0 ]]; then \
 	    echo "==="; \
-	    echo "Enter new version number in full or as one of: 'patch', 'minor', 'major', optionally prefixed with 'pre'."; \
+	    echo "Enter new version number in full or as one of: 'patch', 'minor', 'major', optionally prefixed with 'pre', or 'prerelease'."; \
 	    echo "(Alternatively, pass a value from the command line with 'VER=<new-ver>'.)"; \
 	    read -p "NEW VERSION number (just Enter to abort)?: " -re VER && { [[ -z $$VER ]] && echo 'Aborted.' >&2 && exit 2; }; \
 	  fi; \
@@ -115,7 +115,7 @@ version:
   for dir in ./bin ./lib; do [[ -d $$dir ]] && { replace --quiet --recursive "v$${oldVer//./\\.}" "v$${newVer}" "$$dir" || exit; }; done; \
   [[ `json -f package.json version` == "$$newVer" ]] || { npm version $$newVer --no-git-tag-version >/dev/null && printf $$'\e[0;33m%s\e[0m\n' 'package.json' || exit; }; \
   [[ $$gitTagVer == '(none)' ]] && newVerMdSnippet="**v$$newVer**" || newVerMdSnippet="**[v$$newVer](`json -f package.json repository.url | sed 's/.git$$//'`/compare/v$$gitTagVer...v$$newVer)**"; \
-  grep -Fq "v$$newVer" CHANGELOG.md || { { sed -n '1,/^<!--/p' CHANGELOG.md && printf %s $$'\n* '"$$newVerMdSnippet"$$' ('"`date +'%Y-%m-%d'`"$$'):\n  * ???\n' && sed -n '1,/^<!--/d; p' CHANGELOG.md; } > CHANGELOG.tmp.md && mv CHANGELOG.tmp.md CHANGELOG.md; }; \
+  grep -Eq "\bv$${newVer//./\.}[^[:digit:]-]" CHANGELOG.md || { { sed -n '1,/^<!--/p' CHANGELOG.md && printf %s $$'\n* '"$$newVerMdSnippet"$$' ('"`date +'%Y-%m-%d'`"$$'):\n  * ???\n' && sed -n '1,/^<!--/d; p' CHANGELOG.md; } > CHANGELOG.tmp.md && mv CHANGELOG.tmp.md CHANGELOG.md; }; \
   printf -- "-- Version bumped to v$$newVer in source files and package.json (only just-now updated files were printed above, if any).\n   Describe changes in CHANGELOG.md ('make release' will prompt for it).\n   To update the read-me file, run 'make update-readme' (also happens during 'make release').\n"
 
 # make release [VER=<newVerSpec>] [NOTEST=1]
@@ -123,10 +123,10 @@ version:
 # VER=<newVerSpec> is mandatory, unless the version number in package.json is ahead of the latest Git version tag.
 .PHONY: release
 release: _need-origin _need-npm-credentials _need-master-branch _need-clean-ws-or-no-untracked-files version test
-	@newVer=`json -f package.json version` || exit; \
+	@newVer=`json -f package.json version` || exit; [[ $$newVer == *-* ]] && isPreRelease=1 || isPreRelease=0; \
 	 echo '-- Opening changelog...'; \
 	 $(EDITOR) CHANGELOG.md; \
-	 { grep -Fq "v$$newVer" CHANGELOG.md && ! grep -E '(^|[[:blank:]])\?\?\?([[:blank:]]|$$)' CHANGELOG.md; } || { echo "ABORTED: No changelog entries provided for new version v$$newVer." >&2; exit 2; }; \
+	 { grep -Eq "\bv$${newVer//./\.}[^[:digit:]-]" CHANGELOG.md && ! grep -E '(^|[[:blank:]])\?\?\?([[:blank:]]|$$)' CHANGELOG.md; } || { echo "ABORTED: No changelog entries provided for new version v$$newVer." >&2; exit 2; }; \
 	 commitMsg="v$$newVer"$$'\n'"`sed -n '/\*\*'"v$$newVer"'\*\*/,/^\* /p' CHANGELOG.md | sed '1d;$$d'`"; \
 	 echo "-- Updating README.md..."; \
 	 $(MAKE) -f $(lastword $(MAKEFILE_LIST)) update-license-year update-readme || exit; \
@@ -137,14 +137,14 @@ release: _need-origin _need-npm-credentials _need-master-branch _need-clean-ws-o
 	 echo '-- Committing...'; \
 	 git add --update . || exit; \
 	 [[ -z $$(git status --porcelain || echo no) ]] && echo "-- (Nothing to commit.)" || { git commit -m "$$commitMsg" || exit; echo "-- v$$newVer committed."; }; \
-	 git tag -f -a -m "$$commitMsg" "v$$newVer" || exit; { git tag -f 'stable' || exit; }; \
+	 git tag -f -a -m "$$commitMsg" "v$$newVer" || exit; { git tag -f "`(( isPreRelease )) && printf 'prerelease' || printf 'stable'`" || exit; }; \
 	 echo "-- Tag v$$newVer created."; \
 	 git push origin master || exit; git push -f origin master --tags; \
 	 echo "-- v$$newVer pushed to origin."; \
 	 if [[ `json -f package.json private` != 'true' ]]; then \
-	 		printf "=== About to PUBLISH TO npm REGISTRY as:\n\t**`json -f package.json name`@$$newVer**\n===\nType 'publish' to proceed; anything else to abort: " && read -er response; \
+	 		printf "=== About to PUBLISH TO npm REGISTRY as `(( isPreRelease )) && printf 'PRE-RELEASE' || printf 'LATEST'` version:\n\t**`json -f package.json name`@$$newVer**\n===\nType 'publish' to proceed; anything else to abort: " && read -er response; \
 	 		[[ "$$response" == 'publish' ]] || { echo 'Aborted. Run `npm publish` on demand.' >&2; exit 2; };  \
-	 		npm publish || exit; \
+	 		{ (( isPreRelease )) && npm publish --tag "$$newVer" || npm publish; } || exit; \
 	 		echo "-- Published to npm."; \
 	 else \
 	 		echo "-- (Package marked as private; not publishing to npm registry.)"; \

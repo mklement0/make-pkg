@@ -11,12 +11,10 @@ PATH=\${PWD%%/test*}/bin:\$PATH
 # Helper function for error reporting.
 die() { (( \$# > 0 )) && echo "\$*" >&2; exit 1; }
 
-# Execute your tests as shell commands below. 
-# An exit code of zero signals success, any other code signals an error
-# and causes this test to fail.
-# See https://github.com/tlevine/urchin.
+# Choose an unknown option.
+unknownOption=-9
 
-$(basename -- $(json -f package.json bin | json -Ma value)) --version | egrep -w '[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+' && exit 0
+# Ensure that using an unknown option results in an error.
+$(basename -- $(json -f package.json bin | json -Ma value)) \$unknownOption && die "Unknown option was not detected."
 
-die "ERROR: No semver-compliant version number detected in the output."
-
+exit 0
