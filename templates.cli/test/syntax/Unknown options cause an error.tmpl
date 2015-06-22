@@ -9,7 +9,7 @@
 PATH=\${PWD%%/test*}/bin:\$PATH
 
 # Helper function for error reporting.
-die() { (( \$# > 0 )) && echo "\$*" >&2; exit 1; }
+die() { (( \$# > 0 )) && echo "ERROR: \$*" >&2; exit 1; }
 
 # Choose an unknown option.
 unknownOption=-9

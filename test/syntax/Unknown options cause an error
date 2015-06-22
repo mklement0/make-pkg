@@ -8,14 +8,15 @@
 # ---
 PATH=${PWD%%/test*}/bin:$PATH
 
-# Execute your tests as shell commands below. 
-# An exit code of zero signals success, any other code signals an error
-# and causes this test to fail.
-# See https://github.com/tlevine/urchin.
-
 # Helper function for error reporting.
 die() { (( $# > 0 )) && echo "ERROR: $*" >&2; exit 1; }
 
-make-pkg --version | egrep -w '[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+' || die "No major.minor.patch version number detected in the output."
+# Choose an unknown option.
+unknownOption=-9
+
+# Ensure that using an unknown option results in an error.
+make-pkg $unknownOption && die "Unknown option was not detected."
+
+make-pkg -l $unknownOption </dev/null && die "Unknown option was not detected."
 
 exit 0

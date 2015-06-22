@@ -15,6 +15,15 @@ PATH=${PWD%%/test*}/bin:$PATH
 # and causes this test to fail.
 # See https://github.com/tlevine/urchin.
 
-make-pkg -h | fgrep -qw 'make-pkg' || exit
+# Helper function for error reporting.
+die() { (( $# > 0 )) && echo "ERROR: $*" >&2; exit 1; }
 
-make-pkg --help | fgrep -qw 'make-pkg' || exit
+cli='make-pkg'
+errMsg="CLI name '$cli' not found in stdout output."
+
+for opt in '-h' '--help'; do
+  $cli -h | fgrep -qw "$cli" || die "Option $opt: $errMsg"
+done
+
+exit 0
+

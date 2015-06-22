@@ -9,13 +9,18 @@
 PATH=\${PWD%%/test*}/bin:\$PATH
 
 # Helper function for error reporting.
-die() { (( \$# > 0 )) && echo "\$*" >&2; exit 1; }
+die() { (( \$# > 0 )) && echo "ERROR: \$*" >&2; exit 1; }
 
 # Execute your tests as shell commands below. 
 # An exit code of zero signals success, any other code signals an error
 # and causes this test to fail.
 # See https://github.com/tlevine/urchin.
 
-$(basename -- $(json -f package.json bin | json -Ma value)) -h | fgrep -qw '$(basename -- $(json -f package.json bin | json -Ma value))' || exit
+cli='$(basename -- $(json -f package.json bin | json -Ma value))'
+errMsg="CLI name '\$cli' not found in stdout output."
 
-$(basename -- $(json -f package.json bin | json -Ma value)) --help | fgrep -qw '$(basename -- $(json -f package.json bin | json -Ma value))' || exit
+for opt in '-h' '--help'; do
+  $cli -h | fgrep -qw "\$cli" || die "Option \$opt: \$errMsg"
+done
+
+exit 0

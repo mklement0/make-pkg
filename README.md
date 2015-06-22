@@ -220,6 +220,9 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **[v0.5.1](https://github.com/mklement0/make-pkg/compare/v0.5.0...v0.5.1)** (2015-06-22):
+  * [enhancement] CLI test template for unknown options added; existing templates improved.
+
 * **[v0.5.0](https://github.com/mklement0/make-pkg/compare/v0.4.0...v0.5.0)** (2015-06-16):
   * [change] Pre-release npm tag changed to fixed string 'pre' so as to have that track the most recent pre-release.
   * [change] Pre-release Git tag analogously changed to 'pre'.
