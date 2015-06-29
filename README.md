@@ -220,6 +220,9 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **[v0.5.2](https://github.com/mklement0/make-pkg/compare/v0.5.1...v0.5.2)** (2015-06-29):
+  * [enhancement] CLI and main-module templates improved.
+
 * **[v0.5.1](https://github.com/mklement0/make-pkg/compare/v0.5.0...v0.5.1)** (2015-06-22):
   * [enhancement] CLI test template for unknown options added; existing templates improved.
 
