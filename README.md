@@ -145,7 +145,7 @@ The following image shows an example interaction with the series of prompts pres
 
 <!-- DO NOT EDIT THE FENCED CODE BLOCK and RETAIN THIS COMMENT: The fenced code block below is updated by `make update-readme/release` with CLI usage information. -->
 
-```
+```nohighlight
 $ make-pkg --help
 
 SYNOPSIS
@@ -220,8 +220,11 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **[v0.5.4](https://github.com/mklement0/make-pkg/compare/v0.5.3...v0.5.4)** (2015-07-08):
+  * [enhancement] Read-me template improved so as to ensure that CLI usage information is printed without syntax highlighting.
+
 * **[v0.5.3](https://github.com/mklement0/make-pkg/compare/v0.5.2...v0.5.3)** (2015-06-29):
-  * [enhancement] test stub improved.
+  * [enhancement] Test stub improved.
 
 * **[v0.5.2](https://github.com/mklement0/make-pkg/compare/v0.5.1...v0.5.2)** (2015-06-29):
   * [enhancement] CLI and main-module templates improved.
