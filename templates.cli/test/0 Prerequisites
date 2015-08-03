@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Helper function for error reporting.
-die() { [ $# -gt 0 ] && echo "$*" >&2; exit 1; }
+die() { [ $# -gt 0 ] && echo "ERROR: $*" >&2; exit 1; }
 
 requiredUtils='bash'    # Add additional prerequisites, if any, here.
 for requiredUtil in $requiredUtils; do

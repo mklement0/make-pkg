@@ -220,6 +220,9 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **[v0.5.5](https://github.com/mklement0/make-pkg/compare/v0.5.4...v0.5.5)** (2015-08-03):
+  * [fix] Read-me template now uses ` ```nohighlight ` to fence CLI usage output, which is what the `make update-readme` and `make release` tasks expect.
+
 * **[v0.5.4](https://github.com/mklement0/make-pkg/compare/v0.5.3...v0.5.4)** (2015-07-08):
   * [enhancement] Read-me template improved so as to ensure that CLI usage information is printed without syntax highlighting.
 
