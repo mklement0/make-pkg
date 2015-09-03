@@ -798,9 +798,8 @@ DESCRIPTION
 
   -f
     Forces execution in the current directory, even if it is
-    not empty. However, the only existing file that will be replaced 
-    in that event is 'package.json' - other existing files, including
-    a Git repository, if present, are left untouched.
+    not empty. Note that existing files, including a Git repository,
+    are left untouched, with 'package.json' being the only exception.
 
   -e
     Opens this utility's settings file, ${kSETTINGS_FILE/#$HOME/\$HOME}, for editing.
@@ -1324,7 +1323,7 @@ echoStatus '-- package.json created.'
 
 
 # Note: We copy 'Makefile' from this utility's own *root* package folder, as that is the designated master copy - it is used by this utility package itself - no need to duplicate it in ./templates/.
-cp  "$kTEMPLATE_FOLDER/../Makefile" . || die "Failed to copy Makefile."
+[[ -f ./Makefile ]] && echo "(Existing file preserved: $PWD/Makefile)" >&2 || { cp  "$kTEMPLATE_FOLDER/../Makefile" . || die "Failed to copy Makefile."; }
 
 # Determine the set of template folders to copy
   # Core templates
@@ -1340,6 +1339,13 @@ for tmplDir in "${tmplDirs[@]}"; do
   #       Copying is recursive, but doesn't replace any existing files.
   (shopt -s dotglob; cp -R -n "$tmplDir"/* .) || { (( isDirEmpty )) && die "Failed to copy template files."; } # !! with -n (no clobbering), if files are skipped during copying, cp apparently invariably sets exit code 1.
 done
+
+# Rename 'gitignore-mustrename' to '.gitignore'.
+# Note that the npm registry doesn't include .gitignore files when installing packages; rather
+# than fiddling with exceptions via .npmignore, we give .gitignore a different name in the template
+# and then rename it on package initialization.
+proxyGitIgnoreFilename='_gitignore-mustrename'
+[[ -f .gitignore ]] && { rm "$proxyGitIgnoreFilename"; echo "(Existing file preserved: $PWD/.gitignore)" >&2; } || { mv "$proxyGitIgnoreFilename" .gitignore || die "Failed to create .gitignore file."; }
 
 # Now expand all true template files (-O), without overwriting any existing target files (-n), and delete the template files afterward (-d).
 # Note that our templates contains *command substitutions* such as '$(date +%Y)', so we canNOT use -s to restrict expansions to only *variable* references.
