@@ -7,3 +7,4 @@ node_modules/
 
 # urchin log files
 .urchin.log
+.urchin_stdout

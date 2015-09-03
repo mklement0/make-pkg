@@ -25,7 +25,7 @@ cat <<EOF1; } || { [[ $vPRIVATE == false ]] && cat <<EOF2; }
     echo $friendlyList)
 * When installing **manually**: ???
 
-## From the npm registry
+## Installation from the npm registry
 
 With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed, install [the package](https://www.npmjs.com/package/${vNAME}) as follows:
 
