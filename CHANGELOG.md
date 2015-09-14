@@ -7,6 +7,9 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **[v0.5.6](https://github.com/mklement0/make-pkg/compare/v0.5.5...v0.5.6)** (2015-09-14):
+  * [fix] A preconfigured `.gitignore` file is now copied to a new package folder, as it always should have been.
+
 * **[v0.5.5](https://github.com/mklement0/make-pkg/compare/v0.5.4...v0.5.5)** (2015-08-03):
   * [fix] Read-me template now uses ` ```nohighlight ` to fence CLI usage output, which is what the `make update-readme` and `make release` tasks expect.
 

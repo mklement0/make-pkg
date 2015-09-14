@@ -164,9 +164,8 @@ DESCRIPTION
 
   -f
     Forces execution in the current directory, even if it is
-    not empty. However, the only existing file that will be replaced 
-    in that event is 'package.json' - other existing files, including
-    a Git repository, if present, are left untouched.
+    not empty. Note that existing files, including a Git repository,
+    are left untouched, with 'package.json' being the only exception.
 
   -e
     Opens this utility's settings file, $HOME/.make-pkg-rc, for editing.
@@ -219,6 +218,9 @@ maintaining compatibility is less important. However, larger changes will be ref
 in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
+
+* **[v0.5.6](https://github.com/mklement0/make-pkg/compare/v0.5.5...v0.5.6)** (2015-09-14):
+  * [fix] A preconfigured `.gitignore` file is now copied to a new package folder, as it always should have been.
 
 * **[v0.5.5](https://github.com/mklement0/make-pkg/compare/v0.5.4...v0.5.5)** (2015-08-03):
   * [fix] Read-me template now uses ` ```nohighlight ` to fence CLI usage output, which is what the `make update-readme` and `make release` tasks expect.

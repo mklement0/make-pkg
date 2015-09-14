@@ -75,6 +75,10 @@ createdFiles=$(cd "$tmpDir"; find . \( -path '*/.*' -o -path './node_modules' \)
 # !! packages must be updated.
 diff <(echo "$createdFiles") <(echo "$refFiles") || die "Generated package is missing files ('>') or has extra files ('<')."
 
+# Make sure a .gitignore file was created (which exists under a different name in the template folder and is renamed during package creation).
+f='.gitignore'
+[[ -f $f ]] || die "File missing from package folder: '$f'"
+
 # -- Perform some sanity checks on the *contents* of generated files.
 
 # package.json
