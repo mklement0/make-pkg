@@ -14,9 +14,19 @@
 
 kTHIS_HOMEPAGE='https://github.com/mklement0/make-pkg'
 kTHIS_NAME=${BASH_SOURCE##*/} # this script's name
-kTHIS_VERSION='v0.6.0' # NOTE: This assignment is automatically updated by `make version VER=<newVer>` - DO keep the 'v' prefix.
+kTHIS_VERSION='v0.6.1' # NOTE: This assignment is automatically updated by `make version VER=<newVer>` - DO keep the 'v' prefix.
 
 unset CDPATH  # To prevent unexpected `cd` behavior.
+
+: <<'FOO'
+
+## SYNOPSIS
+
+aga
+
+#
+
+FOO
 
 # --- Begin: STANDARD HELPER FUNCTIONS
 
@@ -67,14 +77,14 @@ openManPage() {
   fi  
 }
 
-# Prints the contents of the synopsis chapter of the embedded Markdown-formatted man-page source.
+# Prints the contents of the synopsis chapter of the embedded Markdown-formatted man-page source for quick reference.
 printUsage() {
   local embeddedText
   # Extract usage information from the SYNOPSIS chapter of the embedded Markdown-formatted man-page source.
-  embeddedText=$(sed -n -e $'/^: <<\'EOF_MAN_PAGE\'/,/^EOF_MAN_PAGE/!d; /SYNOPSIS$/,/^[^ ]/{ s///; t\np; }' "$BASH_SOURCE")
+  embeddedText=$(sed -n -e $'/^: <<\'EOF_MAN_PAGE\'/,/^EOF_MAN_PAGE/!d; /^## SYNOPSIS$/,/^#/{ s///; t\np; }' "$BASH_SOURCE")
   if [[ -n $embeddedText ]]; then
     # Print extracted synopsis chapter - remove backticks for uncluttered display.
-    printf '%s\n' "$embeddedText" | tr -d '`'
+    printf '%s\n\n' "$embeddedText" | tr -d '`'
   else # No SYNOPIS chapter found; fall back to displaying the man page.
     echo "WARNING: usage information not found; opening man page instead." >&2
     openManPage
@@ -1463,35 +1473,54 @@ EOF
 ####
 # MAN PAGE MARKDOWN SOURCE
 #  - Place a Markdown-formatted version of the man page for this script
-#    below the : <<'EOF_MAN_PAGE' line below.
-#  - The entire rest of this script
-#    is assumed to be the Markdown document.
-#  Markdown formatting:
-#   - Append the manual-section number directly to the CLI name in the first heading; e.g.
-#      # foo(1) - does bar
-#   - Use 1-space indentation for plain-text rendering; 4-space indentation, as usual, for code blocks.
-#   - The contents of the SYNOPSIS chapter is extracted when -h/--help is invoked.
-#     Use 4-space indentation without markup for both the syntax line and the
-#     block of brief option descriptions; represent option-arguments and operands
-#     in angle brackets; e.g., '<foo>'
-#  - To support plain-text rendering in the terminal, limit lines to 80 chars.,
-#    and, for similar rendering as HTML, *end every line with 2 trailing spaces*.
-#  - Options list:
-#    - End every list item (bullet point) itself with 2 trailing spaces so
-#      that it renders on its own line.
-#    - To associate more than 1 paragraph with a list item, use the following TRICK:
-#      To produce an empty line while still keeping the text attached to the list item,
-#      use '&nbsp;<space><space>', though note that that introduces noise in plain-text rendering.
-#    - To follow the last list item with regular paragraphs, leave *2* empty lines
-#      in between.
-#   Character-styling markup in `man` view:
-#      `...` and **...** render as bolded (red) text
-#      _..._ and *...* render as word-individually underlined text
+#    inside the here-document below.
+#    The document must be formatted to look good in all 3 viewing scenarios:
+#     - as a man page, after conversion to ROFF with marked-man
+#     - as plain text (raw Markdown source)
+#     - as HTML (rendered Markdown)
+#  Markdown formatting tips:
+#   - GENERAL
+#     To support plain-text rendering in the terminal, limit all lines to 80 chars.,
+#     and, for similar rendering as HTML, *end every line with 2 trailing spaces*.
+#   - HEADINGS
+#     - For better plain-text rendering, leave an empty line after a heading
+#       marked-man will remove it from the ROFF version.
+#     - The first heading must be a level-1 heading containing the utility
+#       name and very brief description; append the manual-section number 
+#       directly to the CLI name; e.g.:
+#         # foo(1) - does bar
+#     - The 2nd, level-2 heading must be '## SYNOPSIS' and the chapter's body
+#       must render reasonably as plain text, because it is printed to stdout
+#       when  `-h`, `--help` is specified:
+#         Use 4-space indentation without markup for both the syntax line and the
+#         block of brief option descriptions; represent option-arguments and operands
+#         in angle brackets; e.g., '<foo>'
+#     - All other headings should be level-2 headings in ALL-CAPS.
+#   - TEXT
+#      - Use NO indentation for regular chapter text; if you do, it will 
+#        be indented further than list items.
+#      - Use 4-space indentation, as usual, for code blocks.
+#      - Markup character-styling markup translates to ROFF rendering as follows:
+#         `...` and **...** render as bolded (red) text
+#         _..._ and *...* render as word-individually underlined text
+#   - LISTS
+#      - Indent list items by 2 spaces for better plain-text viewing, but note
+#        that the ROFF generated by marked-man still renders them unindented.
+#      - End every list item (bullet point) itself with 2 trailing spaces too so
+#        that it renders on its own line.
+#      - In items representing CLI options, use `...` styling, with option-arguments
+#        in angle brackets; e.g. (don't forget 2 trailing spaces):
+#          * `-h, --help`
+#          * `-f, --file <file>`
+#      - Avoid associating more than 1 paragraph with a list item, if possible,
+#        because it requires the following trick, which hampers plain-text readability:
+#        Use '&nbsp;<space><space>' in lieu of an empty line.
 ####
 : <<'EOF_MAN_PAGE' # DO NOT ALTER THIS LINE.
 # make-pkg(1) - initialize and maintain npm package projects
 
 ## SYNOPSIS
+
 Initializes an npm-package project in the current directory and  
 implements a maintenance and release workflow.
     
@@ -1511,10 +1540,9 @@ implements a maintenance and release workflow based on Makefile tasks.
  
 To create a new package project:
 
-   * create a directory for it
-   * change to that directory
-   * run `make-pkg` there.
-
+  * create a directory for it
+  * change to that directory
+  * run `make-pkg` there.
 
 On first run you'll be prompted for settings, including creation of a GitHub  
 authorization token.
@@ -1531,7 +1559,6 @@ through a series of prompts, this utility:
   * installs npm dev dependencies for managing the new package.
   * installs a Makefile with a set of tasks for releasing and maintaining the  
     package.
-
 
 Run `make list` in a package folder to see a list of all Makefile tasks.
 
@@ -1554,6 +1581,7 @@ For more information, visit https://github.com/mklement0/make-pkg
 
  * `-e`  
     Opens this utility's settings file, `~/.make-pkg-rc`, for editing.
+
 
 ## STANDARD OPTIONS
 

@@ -7,6 +7,11 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **[v0.6.1](https://github.com/mklement0/make-pkg/compare/v0.6.0...v0.6.1)** (2015-09-15):
+  * [enhancement] New Makefile task `make view-man` updates the man page and views it locally with `man`.
+  * [fix] Outdated status message at the end of package initialization corrected.
+  * [doc] Read-me and man-page improvements.
+
 * **[v0.6.0](https://github.com/mklement0/make-pkg/compare/v0.5.6...v0.6.0)** (2015-09-15):
   * [enhancement] New feature: optional, off-by-default support for creating and installing a man page
     for a package's main CLI - see description of the `make toggle-man` Makefile task in file README.md.

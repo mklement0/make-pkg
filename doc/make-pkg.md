@@ -3,6 +3,7 @@
 # make-pkg(1) - initialize and maintain npm package projects
 
 ## SYNOPSIS
+
 Initializes an npm-package project in the current directory and  
 implements a maintenance and release workflow.
     
@@ -22,10 +23,9 @@ implements a maintenance and release workflow based on Makefile tasks.
  
 To create a new package project:
 
-   * create a directory for it
-   * change to that directory
-   * run `make-pkg` there.
-
+  * create a directory for it
+  * change to that directory
+  * run `make-pkg` there.
 
 On first run you'll be prompted for settings, including creation of a GitHub  
 authorization token.
@@ -42,7 +42,6 @@ through a series of prompts, this utility:
   * installs npm dev dependencies for managing the new package.
   * installs a Makefile with a set of tasks for releasing and maintaining the  
     package.
-
 
 Run `make list` in a package folder to see a list of all Makefile tasks.
 
@@ -65,6 +64,7 @@ For more information, visit https://github.com/mklement0/make-pkg
 
  * `-e`  
     Opens this utility's settings file, `~/.make-pkg-rc`, for editing.
+
 
 ## STANDARD OPTIONS
 

@@ -163,8 +163,9 @@ Find concise usage information below; for more detailed information read the [ma
 ```nohighlight
 $ make-pkg --help
 
- Initializes an npm-package project in the current directory and
- implements a maintenance and release workflow.
+
+Initializes an npm-package project in the current directory and  
+implements a maintenance and release workflow.
     
     make-pkg [-l] [-f]
     make-pkg -e
@@ -173,7 +174,7 @@ $ make-pkg --help
     -f            forces running in a non-empty directory
     -e            opens the settings file for editing
 
- Standard options: --help, --man, --version, --home
+Standard options: --help, --man, --version, --home
 ```
 
 <!-- DO NOT EDIT THE NEXT CHAPTER and RETAIN THIS COMMENT: The next chapter is updated by `make update-readme/release` with the contents of 'LICENSE.md'. ALSO, LEAVE AT LEAST 1 BLANK LINE AFTER THIS COMMENT. -->
@@ -211,6 +212,11 @@ maintaining compatibility is less important. However, larger changes will be ref
 in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
+
+* **[v0.6.1](https://github.com/mklement0/make-pkg/compare/v0.6.0...v0.6.1)** (2015-09-15):
+  * [enhancement] New Makefile task `make view-man` updates the man page and views it locally with `man`.
+  * [fix] Outdated status message at the end of package initialization corrected.
+  * [doc] Read-me and man-page improvements.
 
 * **[v0.6.0](https://github.com/mklement0/make-pkg/compare/v0.5.6...v0.6.0)** (2015-09-15):
   * [enhancement] New feature: optional, off-by-default support for creating and installing a man page
