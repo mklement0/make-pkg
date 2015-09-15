@@ -24,7 +24,7 @@ list:
 	@$(MAKE) -pRrn -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | grep -Ev -e '^[^[:alnum:]]' -e '^$@$$' | sort
 
 # Open this package's online repository URL (typically, on GitHub) in the default browser.
-# Note: Supported on OSX and Freedesktop-compliant systems, which includes, many Linux and BSD variants.
+# Note: Supported on OSX and Freedesktop-compliant systems, which includes many Linux and BSD variants.
 .PHONY: browse
 browse:
 	@exe=; url=`json -f package.json repository.url` || exit; \
@@ -34,7 +34,7 @@ browse:
 	 "$$exe" "$$url"
 
 # Open this package's page in the npm registry.
-# Note: Supported on OSX and Freedesktop-compliant systems, which includes, many Linux and BSD variants.
+# Note: Supported on OSX and Freedesktop-compliant systems, which includes many Linux and BSD variants.
 .PHONY: browse-npm
 browse-npm:
 	@exe=; [[ `json -f package.json private` == 'true' ]] && { echo "This package is marked private (not for publication in the npm registry)." >&2; exit 1; }; \
@@ -129,8 +129,9 @@ release: _need-origin _need-npm-credentials _need-master-branch _need-clean-ws-o
 	@newVer=`json -f package.json version` || exit; [[ $$newVer == *-* ]] && isPreRelease=1 || isPreRelease=0; \
 	 echo '-- Opening changelog...'; \
 	 $(EDITOR) CHANGELOG.md; \
-	 { grep -Eq "\bv$${newVer//./\.}[^[:digit:]-]" CHANGELOG.md && ! grep -E '(^|[[:blank:]])\?\?\?([[:blank:]]|$$)' CHANGELOG.md; } || { echo "ABORTED: No changelog entries provided for new version v$$newVer." >&2; exit 2; }; \
-	 commitMsg="v$$newVer"$$'\n'"`sed -n '/\*\*'"v$$newVer"'\*\*/,/^\* /p' CHANGELOG.md | sed '1d;$$d'`"; \
+	 changelogEntries=`sed -En -e '/\*\*\[?'"v$$newVer"'(\*|\])/,/^\* / { s///; t' -e 'p; }' CHANGELOG.md`; \
+	 [[ -n $$changelogEntries ]] || { echo "ABORTED: No changelog entries provided for new version v$$newVer." >&2; exit 2; }; \
+	 commitMsg="v$$newVer"$$'\n'"$$changelogEntries"; \
 	 echo "-- Updating documentation, if applicable..."; \
 	 $(MAKE) -f $(lastword $(MAKEFILE_LIST)) update-doc || exit; \
 	 echo "-- Updating README.md..."; \
