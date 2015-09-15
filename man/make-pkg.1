@@ -1,0 +1,126 @@
+.TH "MAKE\-PKG" "1" "September 2015" "v0.6.0" ""
+.SH "NAME"
+\fBmake-pkg\fR \- initialize and maintain npm package projects
+.SH SYNOPSIS
+.P
+ Initializes an npm\-package project in the current directory and
+ implements a maintenance and release workflow\.
+.P
+.RS 2
+.nf
+make\-pkg [\-l] [\-f]
+make\-pkg \-e
+
+\-l            suppresses creation of remote repo on GitHub
+\-f            forces running in a non\-empty directory
+\-e            opens the settings file for editing
+.fi
+.RE
+.P
+ Standard options: \fB\-\-help\fP, \fB\-\-man\fP, \fB\-\-version\fP, \fB\-\-home\fP
+.SH DESCRIPTION
+.P
+ Initializes a GitHub\-based npm\-package project in the current directory and
+.br
+ implements a maintenance and release workflow based on Makefile tasks\.
+.P
+ To create a new package project:
+.RS 0
+.IP \(bu 2
+create a directory for it
+.IP \(bu 2
+change to that directory
+.IP \(bu 2
+run \fBmake\-pkg\fP there\.
+
+.RE
+.P
+ On first run you'll be prompted for settings, including creation of a GitHub
+.br
+ authorization token\.
+.P
+ In addition to initializing package\-configuration file 'package\.json'
+.br
+ through a series of prompts, this utility:
+.RS 0
+.IP \(bu 2
+initializes a local Git repository, adds a \.gitignore file, and defines
+.br
+the remote 'origin' repo\.
+.IP \(bu 2
+creates a matching remote repository on GitHub\.
+.IP \(bu 2
+instantiates several template files so as to provide a starting point for
+.br
+a read\-me file, license file, \.\.\.
+.IP \(bu 2
+installs stubs for the main module, the CLI, if applicable, and tests\.  
+.IP \(bu 2
+installs npm dev dependencies for managing the new package\.
+.IP \(bu 2
+installs a Makefile with a set of tasks for releasing and maintaining the
+.br
+package\.
+
+.RE
+.P
+ Run \fBmake list\fP in a package folder to see a list of all Makefile tasks\.
+.P
+ While this utility is typically used to create packages for publishing at
+.br
+ the npm registry (https://www\.npmjs\.com/), it can be used to manage
+.br
+ GitHub\-based OSS projects in general\.
+.P
+ For more information, visit https://github\.com/mklement0/make\-pkg
+.SH OPTIONS
+.RS 0
+.IP \(bu 2
+\fB\-l\fP
+.br
+Local processing only: no attempt is made to create a matching
+.br
+repository on GitHub\.
+.IP \(bu 2
+\fB\-f\fP
+.br
+Forces execution in the current directory, even if it is not empty\.
+.br
+Note that existing files, including a Git repository, are left untouched,
+.br
+\|'package\.json' being the only exception\.
+.IP \(bu 2
+\fB\-e\fP
+.br
+ Opens this utility's settings file, \fB~/\.make\-pkg\-rc\fP, for editing\.
+
+.RE
+.SH STANDARD OPTIONS
+.P
+ All standard options provide information only\.
+.RS 0
+.IP \(bu 2
+\fB\-h, \-\-help\fP
+.br
+ Prints the contents of the synopsis chapter to stdout for quick reference\.
+.IP \(bu 2
+\fB\-\-man\fP
+.br
+ Displays this manual page, which is a helpful alternative to using \fBman\fP, 
+ if the manual page isn't installed\.
+.IP \(bu 2
+\fB\-\-version\fP
+.br
+ Prints version information\.
+.IP \(bu 2
+\fB\-\-home\fP
+.br
+ Opens this utility's home page in the system's default web browser\.
+
+.RE
+.SH LICENSE
+.P
+ For license information and more, visit this utility's home page by running
+.br
+ \fBmake\-pkg \-\-home\fP\|\.
+

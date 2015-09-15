@@ -6,6 +6,7 @@
   
   , "preferGlobal": false
   
+  
   , "main": "lib/foo-lib.js"
   , "homepage": "https://github.com/jdoe/foo-lib"
   , "repository":
@@ -36,7 +37,6 @@
       "json": "^9.0.3",
       "replace": "^0.3.0",
       "semver": "^4.2.0",
-      "tap": "^0.6.0",
-      "urchin": "^0.0.5"
+      "tap": "^0.6.0"
     }
 }

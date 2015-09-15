@@ -1,21 +1,111 @@
 #!/usr/bin/env bash
 
 # ---------------
-# Run make-pkg --help for brief usage information; see https://github.com/mklement0/make-pg for more.
+# Run make-pkg --help for brief usage information; see https://github.com/mklement0/make-pkg for more.
 #
 # Note that this utility lists package 'json' as BOTH a runtime AND a development dependency - THIS IS INTENTIONAL, AND MUST BE KEPT:
 # 'json' is this utility's only true *runtime* dependency - it needs that package to run.
-# To manage this utility's own package, several more *development* dependencies exist, and 'json' listed there *as well, by design*, 
-# because the list of development dependencies is also copied to the 'package.json' file of projects created by this utility - and this
+# To manage this utility's own package, several more *development* dependencies exist, and 'json' is listed there *as well, by design*, 
+# because the list of development dependencies is also copied to the 'package.json' file of projects created by this utility -
 # such 'package.json' files initially have no *runtime* dependencies, but the dev tasks implemented in the 'Makefile' file definitely
 # rely on 'json' as well.
 # `npm install` gives a warning about the seemingly duplicate 'json' entries when run in this utility's package folder, but this can be ignored.
 # ---------------
 
-kTHIS_NAME=$(basename "$BASH_SOURCE") # this script's name
+kTHIS_HOMEPAGE='https://github.com/mklement0/make-pkg'
+kTHIS_NAME=${BASH_SOURCE##*/} # this script's name
+kTHIS_VERSION='v0.6.0' # NOTE: This assignment is automatically updated by `make version VER=<newVer>` - DO keep the 'v' prefix.
 
-# Output version number and exit, if requested. Note that the `ver='...'` statement is automatically updated by `make version VER=<newVer>` - DO keep the 'v' suffix in the variable _definition_.
-[[ $1 == '--version' ]] && { ver='v0.5.6'; echo "$kTHIS_NAME ${ver#v}"$'\nFor license information and more, visit https://github.com/mklement0/make-pkg'; exit 0; }
+unset CDPATH  # To prevent unexpected `cd` behavior.
+
+# --- Begin: STANDARD HELPER FUNCTIONS
+
+die() { echoError "$kTHIS_NAME: ERROR: ${1:-"ABORTING due to unexpected error."}" 1>&2; exit ${2:-1}; }
+dieSyntax() { echoError "$kTHIS_NAME: ARGUMENT ERROR: ${1:-"Invalid argument(s) specified."}"$'\n'"Use -h for help." 1>&2; exit 2; }
+
+# SYNOPSIS
+#   openUrl <url>
+# DESCRIPTION
+#   Opens the specified URL in the system's default browser.
+openUrl() {
+  local url=$1 platform=$(uname) cmd=()
+  case $platform in
+    'Darwin') # OSX
+      cmd=( open "$url" )
+      ;;
+    'CYGWIN_'*) # Cygwin on Windows; must call cmd.exe with its `start` builtin
+      cmd=( cmd.exe /c start '' "$url " )  # !! Note the required trailing space.
+      ;;
+    'MINGW32_'*) # MSYS or Git Bash on Windows; they come with a Unix `start` binary
+      cmd=( start '' "$url" )
+      ;;
+    *) # Otherwise, assume a Freedesktop-compliant OS, which includes many Linux distros, PC-BSD, OpenSolaris, ...
+      cmd=( xdg-open "$url" )
+      ;; 
+  esac
+  "${cmd[@]}" || { echo "Cannot locate or failed to open default browser; please go to '$url' manually." >&2; return 1; }
+}
+
+# Prints the embedded Markdown-formatted man-page source to stdout.
+printManPageSource() {
+  sed -n -e $'/^: <<\'EOF_MAN_PAGE\'/,/^EOF_MAN_PAGE/ { s///; t\np;}' "$BASH_SOURCE"
+}
+
+# Opens the man page, if installed; otherwise, tries to display the embedded Markdown-formatted man-page source; if all else fails: tries to display the man page online.
+openManPage() {
+  local pager embeddedText 
+  if ! man 1 "$kTHIS_NAME" 2>/dev/null; then
+    # 2nd attempt: if present, display the embedded Markdown-formatted man-page source
+    embeddedText=$(printManPageSource)
+    if [[ -n $embeddedText ]]; then
+      pager='more'
+      command -v less &>/dev/null && pager='less' # see if the non-standard `less` is available, because it's preferable to the POSIX utility `more`
+      printf '%s\n' "$embeddedText" | "$pager"
+    else # 3rd attempt: open the the man page on the utility's website
+      openUrl "${kTHIS_HOMEPAGE}/doc/${kTHIS_NAME}.md"
+    fi
+  fi  
+}
+
+# Prints the contents of the synopsis chapter of the embedded Markdown-formatted man-page source.
+printUsage() {
+  local embeddedText
+  # Extract usage information from the SYNOPSIS chapter of the embedded Markdown-formatted man-page source.
+  embeddedText=$(sed -n -e $'/^: <<\'EOF_MAN_PAGE\'/,/^EOF_MAN_PAGE/!d; /SYNOPSIS$/,/^[^ ]/{ s///; t\np; }' "$BASH_SOURCE")
+  if [[ -n $embeddedText ]]; then
+    # Print extracted synopsis chapter - remove backticks for uncluttered display.
+    printf '%s\n' "$embeddedText" | tr -d '`'
+  else # No SYNOPIS chapter found; fall back to displaying the man page.
+    echo "WARNING: usage information not found; opening man page instead." >&2
+    openManPage
+  fi
+}
+
+# --- End: STANDARD HELPER FUNCTIONS
+
+# ---  PROCESS STANDARD, OUTPUT-INFO-THEN-EXIT OPTIONS.
+case $1 in
+  --version)
+    # Output version number and exit, if requested.
+    echo "$kTHIS_NAME $kTHIS_VERSION"$'\nFor license information and more, visit '"$kTHIS_HOMEPAGE"; exit 0
+    ;;
+  -h|--help)
+    # Print usage information and exit.
+    printUsage; exit
+    ;;
+  --man)
+    # Display the manual page and exit, falling back to printing the embedded man-page source.
+    openManPage; exit
+    ;;
+  --man-source) # private option, used by `make update-doc`
+    # Print raw, embedded Markdown-formatted man-page source and exit
+    printManPageSource; exit
+    ;;
+  --home)
+    # Open the home page and exit.
+    openUrl "$kTHIS_HOMEPAGE"; exit
+    ;;
+esac
 
 # ================ BEGIN: Helper functions
 
@@ -58,24 +148,6 @@ rreadlink() ( # execute function in a *subshell* to localize the effect of `cd`.
   printf '%s\n' "${targetDir%/}/$fname"
 
 )
-
-# Helper function for exiting with error message due to runtime error.
-#   die [errMsg [exitCode]]
-# Default error message states context and indicates that execution is aborted. Default exit code is 1.
-# Prefix for context is always prepended.
-# Note: An error message is *always* printed; if you just want to exit with a specific code silently, use `exit n` directly.
-die() {
-  echoError "$kTHIS_NAME: ERROR: ${1:-"ABORTING due to unexpected error."}"
-  exit ${2:-1} # Note: If the argument is non-numeric, the shell prints a warning and uses exit code 255.
-}
-
-# Helper function for exiting with error message due to invalid arguments.
-#   dieSyntax [errMsg]
-# Default error message is provided, as is prefix and suffix; exit code is always 2.
-dieSyntax() {
-  echoError "$kTHIS_NAME: ARGUMENT ERROR: ${1:-"Invalid argument(s) specified"}. Use -h for help."
-  exit 2
-}
 
 # SYNOPSIS
 #   toJsonArray indent item1 ...
@@ -752,8 +824,6 @@ mapKeysToValues() {
 
 # ----- BEGIN: Script-global constants
 
-unset CDPATH  # to prevent unpredictable `cd` behavior
-
 # Determine this script's folder, resolving the chain of symlinks to ensure that the true package location is found.
 kTHIS_FOLDER=$(dirname "$(dirname "$(rreadlink "$BASH_SOURCE")")") # Note: assumes that this script is in a *subfolder* of the package, namely: bin/.
 kTEMPLATE_FOLDER="$kTHIS_FOLDER/templates"
@@ -776,57 +846,12 @@ kOS_NAMES=( 'OSX'   'FreeBSD' 'Linux' 'SunOS' 'Windows' ) # !! Due to limitation
 
 # ----- END: Script-global constants
 
-# ----- BEGIN: Handle the standard CLI-help and version-printing options, which exit right after doing their job.
-
-
-# Command-line help.
-if [[ $1 == '--help' || $1 == '-h' ]]; then
-  cat <<EOF
-SYNOPSIS
-  $kTHIS_NAME [-l] [-f] 
-  $kTHIS_NAME -e
-
-DESCRIPTION
-  Initializes an npm package project in the current directory.
-
-  To create a new package, change to a new or
-  preexisting-but-empty directory and run $kTHIS_NAME there.
-
-  -l
-    Local processing only: no attempt is made to create a matching
-    repository on GitHub.
-
-  -f
-    Forces execution in the current directory, even if it is
-    not empty. Note that existing files, including a Git repository,
-    are left untouched, with 'package.json' being the only exception.
-
-  -e
-    Opens this utility's settings file, ${kSETTINGS_FILE/#$HOME/\$HOME}, for editing.
-
-  In addition to initializing 'package.json', this utility:
-   * initializes a local Git repository, adds a .gitignore file, defines the
-     remote 'origin' repo
-   * creates a matching remote repository on GitHub
-   * instantiates several template files so as to provide a starting point for
-     a read-me file, license file, ...
-   * installs stubs for the main module, the CLI, if applicable, and tests
-   * installs npm dev dependencies for managing the new package
-   * installs a Makefile with a set of tasks for releasing and maintaining the
-     package
-
-  For more information, visit https://github.com/mklement0/$kTHIS_NAME
-
-EOF
-    exit 0
-
-fi
-# ----- END: standard CLI-help and version-printing options
+# --- Main body
 
   # Process *options*.
 force=0 edit=0 localOnly=0
 while getopts ':lfe' opt; do  # $opt will receive the option *letters* one by one; a trailing : means that an arg. is required, reported in $OPTARG.
-  [[ $opt == '?' ]] && dieSyntax "Uknown option: -$OPTARG"
+  [[ $opt == '?' ]] && dieSyntax "Unknown option: -$OPTARG"
   case "$opt" in
     l)
       localOnly=1
@@ -918,13 +943,19 @@ while :; do  # dummy loop that enables re-reading the settings after having trig
     vPRIVATE=${vPRIVATE:-false}
 
     # The "preferGlobal" property (whether the package is designed for global installation).
-    # Note that we require an *explicit* choice for this property, so the value 
-    # here doesn't matter, except to implicitly mark the variable as a *Boolean*.
+    # Note that we require an *explicit* choice for this property every time, so the value 
+    # here doesn't matter, except to implicitly mark the variable as a Boolean.
     vPREFERGLOBAL=false
 
-    # Settings relating to the inclusion of an auto-updating TOC (Table of Contents) to README.md
+    # Settings relating to the inclusion of an auto-generated TOC (Table of Contents) to README.md
     vTOC_ON=${vTOC_ON:-true}
     vTOC_TITLE=${vTOC_TITLE:-'**Contents**'}
+
+    # Settings relating to the generation of a man page for CLI packages, based on a Markdown-formatted
+    # document that the package's CLI must output when invoked with `--man-source`.
+    # !! We default to FALSE, because this feature is so specialized and has many prerequisites
+    # !! (embedding a marked-man-friendly Markdown document in the CLI that can be extracted with --man-source).
+    vMAN_ON=${vMAN_ON:-false}
 
     # --- END: Apply HARD-CODED DEFAULTS to values not defined in the properties file.
 
@@ -1029,9 +1060,8 @@ EOF
     [[ -n $vGITHUB_TOKEN ]] || echoWarning "Since no authorization token could be obtained, no matching repo on GitHub will be created."
   fi
 
-  # Derive the dev dependencies from *this* script's package - it is assumed to have the same dev dependencies as any package it creates.
-  # Note: Some dev. dependencies are package-*type* specific: 'urchin' is effectively only needed for CLI-only packages; 
-  #       however, since packages are so small, we don't bother with filtering out unneeded ones after the fact.
+  # Derive the CANDIDATE dev dependencies from *this* script's package - it is assumed to have a SUPERSET of the dev dependencies that any 
+  # newly created package needs - UNNEEDED DEPENDENCIES ARE WEEDED OUT BELOW, after the package type has been determined.
   vDEV_DEPENDENCIES=$(json -f "$kTHIS_FOLDER/package.json" -j 'devDependencies')
   [[ -n $vDEV_DEPENDENCIES ]] || die "Failed to determine dev dependencies."
 
@@ -1252,11 +1282,36 @@ while :; do  # prompt loop - it is re-entered, if the user choose to revise at t
     printf -v "$vn" '%s' "$(expandVars "${!vn}")"
   done
 
+  # REMOVE INAPPLICABLE DEV. DEPENDENCIES based on chosen package type and global defaults.
+  devDepsToRemove=()
+  # - 'urchin' is only needed for CLI-only projects,
+  #   'tap' is only needed for lib[+CLI] projects
+  if [[ -n $vMAIN ]]; then
+    devDepsToRemove+=( 'urchin' )
+  else
+    devDepsToRemove+=( 'tap' )
+  fi
+  # - 'marked-man' - for Markdown-to-man-page (ROFF) conversion - is only needed if vMAN_ON is set to true *and*
+  #   a CLI exists.
+  if [[ -z $vBIN_FIRST || $vMAN_ON != 'true' ]]; then
+    devDepsToRemove+=( 'marked-man' )
+  fi
+  if (( ${#devDepsToRemove[@]} )); then
+    for devDep in "${devDepsToRemove[@]}"; do
+      vDEV_DEPENDENCIES=$(json -j -e "delete this[\"$devDep\"]" <<<"$vDEV_DEPENDENCIES") || die "Failed to remove unneeded dependencies from JSON array."
+    done
+  fi
+
   echoStatus "Generating 'package.json'..."
 
   # --- BEGIN: package.json TEMPLATE
 
-  dq=\"  # helper variable for including literal double quotes in variable expansions
+  dq=\"  # helper variable for including literal double quotes in variable expansions - required, because literal " would be removed, and literal \" would be retained as-is.
+
+  # Note re vMAN_ON: We only include the flag if it is true and the new package has a CLI *now*.
+  #                  Leaving the flag on and only later adding a CLI would not work, because the prerequisites for man-page creation
+  #                  will then not be met (no "man" property in package.json, no marked-man dependency installed - this is only ensured
+  #                  if a CLI is defined *now*). Thus, adding a CLI later requires explicit use of `make toggle-man` to turn the feature on.
 
   IFS= read -d '' -r json <<EOF 
 {
@@ -1267,6 +1322,7 @@ while :; do  # prompt loop - it is re-entered, if the user choose to revise at t
   ${vOS_JSON_ARRAY:+, ${dq}os${dq}:${vOS_JSON_ARRAY}}
   , "preferGlobal": $vPREFERGLOBAL
   ${vBIN_MAP:+, ${dq}bin${dq}:${vBIN_MAP}}
+  $( [[ $vMAN_ON == 'true' && -n $vBIN_FIRST ]] && echo ", \"man\": \"./man/${vBIN_FIRST}.1\"" )
   ${vMAIN:+, ${dq}main${dq}: ${dq}lib/${vMAIN}${dq}}
   , "homepage": "$vHOMEPAGE"
   , "repository":
@@ -1285,7 +1341,7 @@ while :; do  # prompt loop - it is re-entered, if the user choose to revise at t
   , "keywords":${vKEYWORD_ARRAY}
   , "author": "$vAUTHOR"
   ${vLIC_SPDX_ID:+, ${dq}license${dq}: ${dq}${vLIC_SPDX_ID}${dq}}
-  , "net_same2u": { "make_pkg": { "tocOn": $vTOC_ON, "tocTitle": "$vTOC_TITLE" } }
+  , "net_same2u": { "make_pkg": { "tocOn": $vTOC_ON, "tocTitle": "$vTOC_TITLE"$( [[ -n $vBIN_FIRST && $vMAN_ON == 'true' ]] && echo ", \"manOn\": $vMAN_ON" ) } }
   , "devDependencies":
     $(sed '2,$ s/^/    /' <<<"$vDEV_DEPENDENCIES")
 }
@@ -1402,3 +1458,118 @@ $(green "Package '$vNAME' SUCCESSFULLY INITIALIZED.")
    ensure that the files initially contain 'v$vVERSION' - *with* the 'v'.
 ---------
 EOF
+
+####
+# MAN PAGE MARKDOWN SOURCE
+#  - Place a Markdown-formatted version of the man page for this script
+#    below the : <<'EOF_MAN_PAGE' line below.
+#  - The entire rest of this script
+#    is assumed to be the Markdown document.
+#  Markdown formatting:
+#   - Append the manual-section number directly to the CLI name in the first heading; e.g.
+#      # foo(1) - does bar
+#   - Use 1-space indentation for plain-text rendering; 4-space indentation, as usual, for code blocks.
+#   - The contents of the SYNOPSIS chapter is extracted when -h/--help is invoked.
+#     Use 4-space indentation without markup for both the syntax line and the
+#     block of brief option descriptions; represent option-arguments and operands
+#     in angle brackets; e.g., '<foo>'
+#  - To support plain-text rendering in the terminal, limit lines to 80 chars.,
+#    and, for similar rendering as HTML, *end every line with 2 trailing spaces*.
+#  - Options list:
+#    - End every list item (bullet point) itself with 2 trailing spaces so
+#      that it renders on its own line.
+#    - To associate more than 1 paragraph with a list item, use the following TRICK:
+#      To produce an empty line while still keeping the text attached to the list item,
+#      use '&nbsp;<space><space>', though note that that introduces noise in plain-text rendering.
+#    - To follow the last list item with regular paragraphs, leave *2* empty lines
+#      in between.
+#   Character-styling markup in `man` view:
+#      `...` and **...** render as bolded (red) text
+#      _..._ and *...* render as word-individually underlined text
+####
+: <<'EOF_MAN_PAGE' # DO NOT ALTER THIS LINE.
+# make-pkg(1) - initialize and maintain npm package projects
+
+## SYNOPSIS
+ Initializes an npm-package project in the current directory and
+ implements a maintenance and release workflow.
+    
+    make-pkg [-l] [-f]
+    make-pkg -e
+
+    -l            suppresses creation of remote repo on GitHub
+    -f            forces running in a non-empty directory
+    -e            opens the settings file for editing
+
+ Standard options: `--help`, `--man`, `--version`, `--home`
+
+## DESCRIPTION
+ Initializes a GitHub-based npm-package project in the current directory and  
+ implements a maintenance and release workflow based on Makefile tasks.
+ 
+ To create a new package project:
+
+ * create a directory for it
+ * change to that directory
+ * run `make-pkg` there.
+
+
+ On first run you'll be prompted for settings, including creation of a GitHub  
+ authorization token.
+
+ In addition to initializing package-configuration file 'package.json'  
+ through a series of prompts, this utility:
+
+  * initializes a local Git repository, adds a .gitignore file, and defines  
+    the remote 'origin' repo.
+  * creates a matching remote repository on GitHub.
+  * instantiates several template files so as to provide a starting point for  
+    a read-me file, license file, ...
+  * installs stubs for the main module, the CLI, if applicable, and tests.  
+  * installs npm dev dependencies for managing the new package.
+  * installs a Makefile with a set of tasks for releasing and maintaining the  
+    package.
+
+
+ Run `make list` in a package folder to see a list of all Makefile tasks.
+
+ While this utility is typically used to create packages for publishing at  
+ the npm registry (https://www.npmjs.com/), it can be used to manage  
+ GitHub-based OSS projects in general.
+
+ For more information, visit https://github.com/mklement0/make-pkg
+
+## OPTIONS
+ * `-l`  
+  Local processing only: no attempt is made to create a matching  
+  repository on GitHub.
+
+ * `-f`  
+  Forces execution in the current directory, even if it is not empty.  
+  Note that existing files, including a Git repository, are left untouched,  
+  'package.json' being the only exception.
+
+ * `-e`  
+    Opens this utility's settings file, `~/.make-pkg-rc`, for editing.
+
+## STANDARD OPTIONS
+ All standard options provide information only.
+
+ * `-h, --help`  
+    Prints the contents of the synopsis chapter to stdout for quick reference.
+
+ * `--man`  
+    Displays this manual page, which is a helpful alternative to using `man`, 
+    if the manual page isn't installed.
+
+ * `--version`  
+    Prints version information.
+    
+ * `--home`  
+    Opens this utility's home page in the system's default web browser.
+
+## LICENSE
+ For license information and more, visit this utility's home page by running  
+ `make-pkg --home`.
+
+EOF_MAN_PAGE

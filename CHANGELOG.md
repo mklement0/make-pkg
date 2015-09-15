@@ -7,6 +7,13 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **[v0.6.0](https://github.com/mklement0/make-pkg/compare/v0.5.6...v0.6.0)** (2015-09-15):
+  * [enhancement] New feature: optional, off-by-default support for creating and installing a man page
+    for a package's main CLI - see description of the `make toggle-man` Makefile task in file README.md.
+  * [behavioral change] Makefile task `toc` renamed to `toggle-doc`; also, toggling
+    no longer attempts to remove an existing TOC on turning off, and no longer automatically adds one on turning on.
+  * [doc] `make-pkg` now comes with a man page; `make-pkg -h` now just outputs concise usage info.
+
 * **[v0.5.6](https://github.com/mklement0/make-pkg/compare/v0.5.5...v0.5.6)** (2015-09-14):
   * [fix] A preconfigured `.gitignore` file is now copied to a new package folder, as it always should have been.
 

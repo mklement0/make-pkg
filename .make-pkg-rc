@@ -97,15 +97,17 @@
     #   0.1.0
   vVERSION=
 
-# === DEFAULTS for TABLE OF CONTENTS for README.md
+# === DEFAULTS for TABLE OF CONTENTS GENERATION for README.md
 
-    # NOTE: These settings control relate to the auto-updating TOC (table of conents)
+    # NOTE: These settings relate to the auto-generated TOC (table of conents)
     #       that is included in README.md by default.
     #       These settings are NOT prompted for during package initialization,
-    #       but you can use `make toc` later to toggle the TOC on and off.
+    #       but you can use `make toggle-toc` later to toggle the TOC on and off;
+    #       alternatively, edit the "net_same2u" property in the package.json file
+    #       directly.
 
     # OPTIONAL (default: true)
-    #   Whether to include a TOC in README.md or not.
+    #   Whether to include an auto-generated TOC in README.md or not.
     # EXAMPLE VALUE
     #   true
   vTOC_ON=
@@ -115,6 +117,21 @@
     # EXAMPLE VALUE
     #   **Contents**
   vTOC_TITLE=
+
+# === DEFAULTS for MAN-PAGE CREATION
+
+    # NOTE: This setting controls creating and installing a man page for CLI packages.   
+    #       This setting is NOT prompted for during package initialization,
+    #       but you can use `make toggle-man` later to toggle man-page creation on and off;
+    #       alternatively, edit the "net_same2u" property in the package.json file
+    #       directly.
+
+    # OPTIONAL (default: false)
+    #   Whether to generate a man page from the Markdown-formatted output
+    #   that a package's CLI must output when invoked with `--man-source`.
+    # EXAMPLE VALUE
+    #   true
+vMAN_ON=
 
 # ==== GENERAL CONFIGURATION
 

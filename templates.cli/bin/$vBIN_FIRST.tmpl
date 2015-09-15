@@ -1,25 +1,40 @@
 #!/usr/bin/env bash
 
+###########
+#   This script is a CLI stub implemented in Bash.
+#   If you happen to be planning to create a Bash-based CLI, this script
+#   can serve as a - very basic - starting point.
+#
+#   Globally installed CLIs benefit from having an associated man page.
+#   make-pkg's optional vMAN_ON setting facilitates creation of a man page,
+#   but requires the CLI to exhibit specific behaviors, notably producing
+#   output of a Markdown-format version of the man page when invoked with
+#   --man-source. For more information, visit
+#     https://github.com/mklement0/make-pkg
+#   and search for 'toggle-man'.
+###########
+
 ###
 # Home page: $vHOMEPAGE
-# Author:   $vAUTHOR
+# Author:    $vAUTHOR
 # Invoke with:
 #   --version for version information
 #   --help for usage information
 ###
 
-# Determine this script's basename.
+# Determine this script's filename.
 kTHIS_NAME=\${BASH_SOURCE##*/}
 
-# Output version number and exit, if requested. Note that the `ver='...'` statement is automatically updated by `make version VER=<newVer>` - DO keep the 'v' suffix in the variable *definition*.
-[[ \$1 == '--version' ]] && { ver='v${vVERSION}'; echo "\$kTHIS_NAME \${ver#v}"\$'\nFor license information and more, visit $vHOMEPAGE'; exit 0; }
-
-# Print CLI usage information, if requested.
-[[ \$1 == '-h' || \$1 == '--help' ]] && { 
-  cat <<EOF
-??? Please provide CLI usage information here.
+# Handle standard, info-only-and-exit options.
+case \$1 in
+  '--version') # Output version number and exit, if requested. Note that the `ver='...'` statement is automatically updated by `make version VER=<newVer>` - DO keep the 'v' prefix.
+    ver='v${vVERSION}'; echo "\$kTHIS_NAME \${ver}"\$'\nFor license information and more, visit $vHOMEPAGE'; exit 0
+    ;;
+  '-h'|'--help') # Print CLI usage information.
+    cat <<EOF
+??? Provide CLI usage information here.
 EOF
-  exit 0
-}
+    exit 0
+esac
 
 printf '%s\n' "I AM BUT A POOR STUB. FLESH ME OUT, PLEASE." >&2; exit 2

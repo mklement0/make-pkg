@@ -42,15 +42,29 @@ With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed, inst
 * Make it executable with `chmod +x ${vBIN_FIRST}`.
 * Move it or symlink it to a folder in your `\$PATH`, such as `/usr/local/bin` (OSX) or `/usr/bin` (Linux).
 EOF1
-With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed, install from the [npm registry](https://www.npmjs.com/${vNAME}):
+With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed, install from the [npm registry](https://www.npmjs.com/package/${vNAME}):
 
     npm install ${vNAME}
+
+To add this package to a package project of yours as a runtime / dev / optional dependency, append `--save` / `--save-dev` / `--save-optional` - see `npm help install` for details.
 EOF2
 )
 
 # Usage
+$( [[ -n $vBIN_FIRST && $vMAN_ON == true ]] && cat <<EOF
 
-${vBIN_MAP:+<!-- DO NOT EDIT THE FENCED CODE BLOCK and RETAIN THIS COMMENT: The fenced code block below is updated by `make update-readme/release` with CLI usage information. -->$'\n\n```nohighlight\n$ cli --help\n```'}
+Find concise usage information below; for complete documentation, read the [manual online](doc/${vBIN_FIRST}.md), or, once installed, run `man ${vBIN_FIRST}` (`${vBIN_FIRST} --man` if installed manually).
+EOF
+)
+$( [[ -n $vBIN_FIRST ]] && cat <<EOF
+
+<!-- DO NOT EDIT THE FENCED CODE BLOCK and RETAIN THIS COMMENT: The fenced code block below is updated by `make update-readme/release` with CLI usage information. -->
+
+```nohighlight
+\$ ${vBIN_FIRST} --help
+```
+EOF
+)
 
 <!-- DO NOT EDIT THE NEXT CHAPTER and RETAIN THIS COMMENT: The next chapter is updated by `make update-readme/release` with the contents of 'LICENSE.md'. ALSO, LEAVE AT LEAST 1 BLANK LINE AFTER THIS COMMENT. -->
 

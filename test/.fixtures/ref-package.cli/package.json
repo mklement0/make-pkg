@@ -14,6 +14,7 @@
         "foo-cli": "bin/foo-cli"
     }
   
+  
   , "homepage": "https://github.com/jdoe/foo-cli"
   , "repository":
     {
@@ -43,7 +44,6 @@
       "json": "^9.0.3",
       "replace": "^0.3.0",
       "semver": "^4.2.0",
-      "tap": "^0.6.0",
       "urchin": "^0.0.5"
     }
 }

@@ -16,6 +16,6 @@ PATH=${PWD%%/test*}/bin:$PATH
 # Helper function for error reporting.
 die() { (( $# > 0 )) && echo "ERROR: $*" >&2; exit 1; }
 
-make-pkg --version | egrep -w '[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+' || die "No major.minor.patch version number detected in the output."
+make-pkg --version | grep -Ew 'v?[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+' || die "No major.minor.patch version number detected in the output."
 
 exit 0
