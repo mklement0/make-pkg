@@ -1452,10 +1452,11 @@ $(green "Package '$vNAME' SUCCESSFULLY INITIALIZED.")
  - Add tests to the './test' subdirectory.
  - Run \`make list\` to see available makefile tasks.
  - Run \`make push\` to push to the remote GitHub repo.
- - Run \`make version\` to see the current package version.
+ - Run \`make verinfo\` to see the current package version.
  - To have version numbers in source files automatically updated
    with \`make version VER=...\` and \`make release VER=...\`,
    ensure that the files initially contain 'v$vVERSION' - *with* the 'v'.
+ - For more information, visit $kTHIS_HOMEPAGE
 ---------
 EOF
 
@@ -1491,8 +1492,8 @@ EOF
 # make-pkg(1) - initialize and maintain npm package projects
 
 ## SYNOPSIS
- Initializes an npm-package project in the current directory and
- implements a maintenance and release workflow.
+Initializes an npm-package project in the current directory and  
+implements a maintenance and release workflow.
     
     make-pkg [-l] [-f]
     make-pkg -e
@@ -1501,24 +1502,25 @@ EOF
     -f            forces running in a non-empty directory
     -e            opens the settings file for editing
 
- Standard options: `--help`, `--man`, `--version`, `--home`
+Standard options: `--help`, `--man`, `--version`, `--home`
 
 ## DESCRIPTION
- Initializes a GitHub-based npm-package project in the current directory and  
- implements a maintenance and release workflow based on Makefile tasks.
+
+Initializes a GitHub-based npm-package project in the current directory and  
+implements a maintenance and release workflow based on Makefile tasks.
  
- To create a new package project:
+To create a new package project:
 
- * create a directory for it
- * change to that directory
- * run `make-pkg` there.
+   * create a directory for it
+   * change to that directory
+   * run `make-pkg` there.
 
 
- On first run you'll be prompted for settings, including creation of a GitHub  
- authorization token.
+On first run you'll be prompted for settings, including creation of a GitHub  
+authorization token.
 
- In addition to initializing package-configuration file 'package.json'  
- through a series of prompts, this utility:
+In addition to initializing package-configuration file 'package.json'  
+through a series of prompts, this utility:
 
   * initializes a local Git repository, adds a .gitignore file, and defines  
     the remote 'origin' repo.
@@ -1531,15 +1533,16 @@ EOF
     package.
 
 
- Run `make list` in a package folder to see a list of all Makefile tasks.
+Run `make list` in a package folder to see a list of all Makefile tasks.
 
- While this utility is typically used to create packages for publishing at  
- the npm registry (https://www.npmjs.com/), it can be used to manage  
- GitHub-based OSS projects in general.
+While this utility is typically used to create packages intended for  
+publication via the npm registry (https://www.npmjs.com/), it can be used to  
+manage GitHub-based OSS projects in general.
 
- For more information, visit https://github.com/mklement0/make-pkg
+For more information, visit https://github.com/mklement0/make-pkg
 
 ## OPTIONS
+
  * `-l`  
   Local processing only: no attempt is made to create a matching  
   repository on GitHub.
@@ -1553,7 +1556,8 @@ EOF
     Opens this utility's settings file, `~/.make-pkg-rc`, for editing.
 
 ## STANDARD OPTIONS
- All standard options provide information only.
+
+All standard options provide information only.
 
  * `-h, --help`  
     Prints the contents of the synopsis chapter to stdout for quick reference.
@@ -1569,7 +1573,8 @@ EOF
     Opens this utility's home page in the system's default web browser.
 
 ## LICENSE
- For license information and more, visit this utility's home page by running  
- `make-pkg --home`.
+
+For license information and more, visit this utility's home page by running  
+`make-pkg --home`.
 
 EOF_MAN_PAGE

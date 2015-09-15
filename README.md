@@ -74,7 +74,7 @@ These tasks are defined in file `Makefile`, which can be customized after the fa
     * Shows whether the feature is currently on and prompts to toggle it; by default, it is turned _off_.
     * To turn the feature on or off for _future_ CLI projects, run `make-pkg -e` and edit the `vMAN_ON` setting.
     * To update the man page on demand, run `make update-man`; updating is performed automatically during `make release`.
-    * To view the man page locally, run `man man/*.1`.
+    * To update _and_ view the man page locally, run `make view-man`.
     * Note: For this feature to work, a package's CLI must exhibit very specific behavior: when invoked with `--man-source`, 
       it must output a Markdown-formatted document that [marked-man](https://github.com/kapouer/marked-man) can process;
       the Markdown document is extracted as-is to `./doc/`, and the man-page-format (ROFF) document created by `marked-man` is saved to `./man/`.

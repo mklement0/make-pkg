@@ -3,8 +3,9 @@
 \fBmake-pkg\fR \- initialize and maintain npm package projects
 .SH SYNOPSIS
 .P
- Initializes an npm\-package project in the current directory and
- implements a maintenance and release workflow\.
+Initializes an npm\-package project in the current directory and
+.br
+implements a maintenance and release workflow\.
 .P
 .RS 2
 .nf
@@ -17,14 +18,14 @@ make\-pkg \-e
 .fi
 .RE
 .P
- Standard options: \fB\-\-help\fP, \fB\-\-man\fP, \fB\-\-version\fP, \fB\-\-home\fP
+Standard options: \fB\-\-help\fP, \fB\-\-man\fP, \fB\-\-version\fP, \fB\-\-home\fP
 .SH DESCRIPTION
 .P
- Initializes a GitHub\-based npm\-package project in the current directory and
+Initializes a GitHub\-based npm\-package project in the current directory and
 .br
- implements a maintenance and release workflow based on Makefile tasks\.
+implements a maintenance and release workflow based on Makefile tasks\.
 .P
- To create a new package project:
+To create a new package project:
 .RS 0
 .IP \(bu 2
 create a directory for it
@@ -35,13 +36,13 @@ run \fBmake\-pkg\fP there\.
 
 .RE
 .P
- On first run you'll be prompted for settings, including creation of a GitHub
+On first run you'll be prompted for settings, including creation of a GitHub
 .br
- authorization token\.
+authorization token\.
 .P
- In addition to initializing package\-configuration file 'package\.json'
+In addition to initializing package\-configuration file 'package\.json'
 .br
- through a series of prompts, this utility:
+through a series of prompts, this utility:
 .RS 0
 .IP \(bu 2
 initializes a local Git repository, adds a \.gitignore file, and defines
@@ -64,15 +65,15 @@ package\.
 
 .RE
 .P
- Run \fBmake list\fP in a package folder to see a list of all Makefile tasks\.
+Run \fBmake list\fP in a package folder to see a list of all Makefile tasks\.
 .P
- While this utility is typically used to create packages for publishing at
+While this utility is typically used to create packages intended for
 .br
- the npm registry (https://www\.npmjs\.com/), it can be used to manage
+publication via the npm registry (https://www\.npmjs\.com/), it can be used to
 .br
- GitHub\-based OSS projects in general\.
+manage GitHub\-based OSS projects in general\.
 .P
- For more information, visit https://github\.com/mklement0/make\-pkg
+For more information, visit https://github\.com/mklement0/make\-pkg
 .SH OPTIONS
 .RS 0
 .IP \(bu 2
@@ -97,7 +98,7 @@ Note that existing files, including a Git repository, are left untouched,
 .RE
 .SH STANDARD OPTIONS
 .P
- All standard options provide information only\.
+All standard options provide information only\.
 .RS 0
 .IP \(bu 2
 \fB\-h, \-\-help\fP
@@ -120,7 +121,7 @@ Note that existing files, including a Git repository, are left untouched,
 .RE
 .SH LICENSE
 .P
- For license information and more, visit this utility's home page by running
+For license information and more, visit this utility's home page by running
 .br
- \fBmake\-pkg \-\-home\fP\|\.
+\fBmake\-pkg \-\-home\fP\|\.
 
