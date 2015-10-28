@@ -213,6 +213,15 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **[v0.6.2](https://github.com/mklement0/make-pkg/compare/v0.6.1...v0.6.2)** (2015-10-28):
+  * [enhancement] `README.md`: Added custom badge that marks a project initially as not ready for release;
+    to be removed when appropriat later; similarly, for npm-package projects, 
+    the npm-version badge is now initially commented out, to be uncommented once the project is published to 
+    the npm registry.  
+    Streamlined the license badges to always use a custom badge with the license's SPDX ID, which
+    also makes it work with npm-package projects not yet published to the registry.
+  * [dev] Makefile robustness improved.
+
 * **[v0.6.1](https://github.com/mklement0/make-pkg/compare/v0.6.0...v0.6.1)** (2015-09-15):
   * [enhancement] New Makefile task `make view-man` updates the man page and views it locally with `man`.
   * [fix] Outdated status message at the end of package initialization corrected.

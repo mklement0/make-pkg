@@ -1,5 +1,9 @@
+<!-- Remove, once published/released. -->
+![project status - not ready for release](https://img.shields.io/badge/status-not_ready_for_release-red.svg)
+
 $([[ $vPRIVATE != 'true' ]] && cat <<EOF1 || cat <<EOF2
-[![npm version](https://img.shields.io/npm/v/${vNAME}.svg)](https://npmjs.com/package/${vNAME}) [![license](https://img.shields.io/npm/l/${vNAME}.svg)](${vREPO_URL%.git}/blob/master/LICENSE.md)
+<!-- Uncomment first link, once published to the npm registry. -->
+<!-- [![npm version](https://img.shields.io/npm/v/${vNAME}.svg)](https://npmjs.com/package/${vNAME}) --> [![license](https://img.shields.io/badge/license-${vLIC_SPDX_ID//-/--}-blue.svg)](${vREPO_URL%.git}/blob/master/LICENSE.md)
 EOF1
 [![license](https://img.shields.io/badge/license-${vLIC_SPDX_ID//-/--}-blue.svg)](${vREPO_URL%.git}/blob/master/LICENSE.md)
 EOF2
