@@ -213,6 +213,11 @@ in higher version-number increases.
 
 <!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **[v0.6.3](https://github.com/mklement0/make-pkg/compare/v0.6.2...v0.6.3)** (2015-10-28):
+  * [enhancement] An attempt to run tests now bows out gracefully with a status
+    messsage (and without error) if the `./test` subdir. is empty (save for hidden items),
+    _before_ attempting to invoke `tap` or `urchin`.
+
 * **[v0.6.2](https://github.com/mklement0/make-pkg/compare/v0.6.1...v0.6.2)** (2015-10-28):
   * [enhancement] `README.md`: Added custom badge that marks a project initially as not ready for release;
     to be removed when appropriat later; similarly, for npm-package projects, 
