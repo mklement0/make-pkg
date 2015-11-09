@@ -99,8 +99,8 @@ f='README.md'
 # Look for top-level headings - missing ones typically imply a failure during template expansion
 while IFS= read -r headingRegex; do
   grep -Ei "$headingRegex" "$f" || die "'$f' does not contain the expected heading: '$headingRegex'"
-done <<'EOF'
-^# .*&mdash;
+done <<EOF
+^# .*${pkgName}
 ^# .*installation
 ^# .*usage
 ^# .*license

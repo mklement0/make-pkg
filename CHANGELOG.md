@@ -7,6 +7,9 @@ in higher version-number increases.
 
 <!-- RETAIN THIS COMMENT. An entry template is automatically added each time `make version` is called. Fill in changes afterward. -->
 
+* **[v0.7.1](https://github.com/mklement0/make-pkg/compare/v0.7.0...v0.7.1)** (2015-11-08):
+  * [doc] Tweaks to the read-me templates.
+
 * **[v0.7.0](https://github.com/mklement0/make-pkg/compare/v0.6.3...v0.7.0)** (2015-11-08):
   * [behavioral change] The package's directory name is now _invariably_ used as 
     the npm package name.

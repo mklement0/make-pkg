@@ -12,7 +12,7 @@ EOF2
 <!-- START doctoc -->
 <!-- END doctoc -->
 
-# ${vNAME} &mdash; ${vDESCR}
+# ${vNAME}: ${vDESCR}
 
 ${vDESCR}
 

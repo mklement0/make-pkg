@@ -12,7 +12,7 @@ EOF2
 <!-- START doctoc -->
 <!-- END doctoc -->
 
-# ${vNAME} &mdash; ${vDESCR}
+# ${vNAME}: ${vDESCR}
 
 **${vName}** is an [Alfred 2](http://www.alfredapp.com) [workflow](https://www.alfredapp.com/workflows/)
 
