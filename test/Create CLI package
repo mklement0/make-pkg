@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
 # Arguments:
-#                         isPrivate pkgName pkgDescr      isGlobal binNames mainName supportedOSnames keywords       licenseID
-./.fixtures/create-package n         foo-cli 'foo-cli pkg' y        ''       ''       'linux,darwin'   'foo,bar,cli'  MIT
+#                                  isPrivate pkgDescr      isGlobal binNames mainName supportedOSnames keywords       licenseID
+./.fixtures/create-package foo-cli n        'foo-cli pkg' y        ''       ''       'linux,darwin'   'foo,bar,cli'  MIT

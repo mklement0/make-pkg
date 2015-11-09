@@ -7,12 +7,17 @@
 Initializes an npm-package project in the current directory and  
 implements a maintenance and release workflow.
     
-    make-pkg [-l] [-f]
+    make-pkg [-l] [-f] [<pkg-type>]
     make-pkg -e
 
     -l            suppresses creation of remote repo on GitHub
     -f            forces running in a non-empty directory
     -e            opens the settings file for editing
+
+    <pkg-type>    [experimental] creates a specific package type:
+                  'lib': JS library (only)
+                  'cli': CLI (only), global installation preferred
+                  'awf': an Alfred 2 workflow
 
 Standard options: `--help`, `--man`, `--version`, `--home`
 
@@ -29,6 +34,11 @@ To create a new package project:
 
 On first run you'll be prompted for settings, including creation of a GitHub  
 authorization token.
+
+Not specifying `<pkg-type>` presents the full set of prompts for creating a
+a library and/or CLI npm package.  
+Package types other than 'lib' and 'cli' offer additional, type-specific  
+features.
 
 In addition to initializing package-configuration file 'package.json'  
 through a series of prompts, this utility:

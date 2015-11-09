@@ -1,27 +1,23 @@
 #!/usr/bin/env expect -f
 
 # Usage:
-#   <script> isPrivate pkgName pkgDescr       isGlobal binNames mainName supportedOSnames keywords       licenseID
+#   <script> isPrivate pkgDescr       isGlobal binNames mainName supportedOSnames keywords       licenseID
 # Example:
-#   <script> n         foo     'foo does bar' y        ''       ''       'linux,darwin'   'foo,bar,baz'  MIT
+#   <script> n         'foo does bar' y        ''       ''       'linux,darwin'   'foo,bar,baz'  MIT
 
 set vPrivate [lindex $argv 0]
-set vName [lindex $argv 1]
-set vDescription [lindex $argv 2]
-set vGlobal [lindex $argv 3]
-set vBin [lindex $argv 4]
-set vMain [lindex $argv 5]
-set vOSs [lindex $argv 6]
-set vKeywords [lindex $argv 7]
-set vLic [lindex $argv 8]
+set vDescription [lindex $argv 1]
+set vGlobal [lindex $argv 2]
+set vBin [lindex $argv 3]
+set vMain [lindex $argv 4]
+set vOSs [lindex $argv 5]
+set vKeywords [lindex $argv 6]
+set vLic [lindex $argv 7]
 
 spawn make-pkg -l
 
 expect "PRIVATE"
 send "$vPrivate\r"
-
-expect "NAME"
-send "$vName\r"
 
 expect "DESCRIPTION"
 send "$vDescription\r"

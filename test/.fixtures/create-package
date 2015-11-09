@@ -29,16 +29,18 @@ expectScript="$PWD/expect-script"
 # Make sure the Expect script and the initialization file exist.
 ls "$expectScript" "$testRcFile" >/dev/null || die
 
-# Name parameters 
+# The package name.
+pkgName=$1; shift
+
+# The parameters for create-package
 isPrivate=$1
-pkgName=$2
-pkgDescr=$3
-isGlobal=$4
-binNames=$5
-mainName=$6
-supportedOSnames=$7
-keywords=$8
-licenseID=$9
+pkgDescr=$2
+isGlobal=$3
+binNames=$4
+mainName=$5
+supportedOSnames=$6
+keywords=$7
+licenseID=$8
 
 
 # Determine the reference package dir, based on package type.
@@ -52,7 +54,7 @@ else  # lib only
 fi
 
 # Create a temp. dir...
-tmpDir=$(mktemp -d -t XXXX) || die # Works on both OSX and Linux; note: dir. name will have random extension on OSX (e.g., '.../XXXX.bJViLcM3') and none on Linux (e.g., '.../vXDA')
+tmpDir="$(mktemp -d -t XXXX)/$pkgName" && mkdir "$tmpDir" || die # Works on both OSX and Linux; note: dir. name will have random extension on OSX (e.g., '.../XXXX.bJViLcM3') and none on Linux (e.g., '.../vXDA')
 # trap 'rm -rf "$tmpDir"' EXIT # Set up exit trap to automatically clean up the temp dir.
 
 # ... change to it ...
@@ -60,7 +62,7 @@ cd "$tmpDir" || die
 
 # ... and create a package.
 # Usage:
-#                                          <script>  isPrivate pkgName pkgDescr      isGlobal binNames mainName supportedOSnames keywords           licenseID
+#                                          <script>  isPrivate pkgDescr      isGlobal binNames mainName supportedOSnames keywords           licenseID
 MAKE_PKG_RC="$testRcFile" expect "$expectScript" "$@" || die
 
 # If the target dir is *empty* afterward, something must have gone wrong.
@@ -98,7 +100,7 @@ f='README.md'
 while IFS= read -r headingRegex; do
   grep -Ei "$headingRegex" "$f" || die "'$f' does not contain the expected heading: '$headingRegex'"
 done <<'EOF'
-^# .*introduction
+^# .*&mdash;
 ^# .*installation
 ^# .*usage
 ^# .*license

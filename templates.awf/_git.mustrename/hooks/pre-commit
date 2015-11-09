@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+kTHIS_NAME='PRE-COMMIT HOOK'
+
+die() { echo "$kTHIS_NAME: ERROR: ${1:-"ABORTING due to unexpected error."}" 1>&2; exit ${2:-1}; }
+
+kSOURCEDIR='alfredworkflow'
+kARCHIVEDIR='archive'
+
+# First, update the version number file in the source dir.
+ver=$(json -f package.json version) || die "Failed to extract version number from 'package.json'."
+echo "$ver" > "$kSOURCEDIR"/version || die "Failed to update version-information file '$kSOURCEDIR/version'."
+
+# Create the *.alfredworkflow ZIP archive.
+awf export "$kSOURCEDIR" "$kARCHIVEDIR" || die "Failed to create *.alfredworkflow archive in '$kARCHIVEDIR'."
+
+# Add the updated version and *.alfredworkflow files to the Git index.
+git add -- "$kSOURCEDIR"/version "$kARCHIVEDIR"/*.alfredworkflow || die "Failed to add to index: "$kARCHIVEDIR"/*.alfredworkflow"
+

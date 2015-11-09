@@ -5,7 +5,17 @@ Since this utility is applied only _once_ to a given package - in order to initi
 maintaining compatibility is less important. However, larger changes will be reflected
 in higher version-number increases.
 
-<!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
+<!-- RETAIN THIS COMMENT. An entry template is automatically added each time `make version` is called. Fill in changes afterward. -->
+
+* **[v0.7.0](https://github.com/mklement0/make-pkg/compare/v0.6.3...v0.7.0)** (2015-11-08):
+  * [behavioral change] The package's directory name is now _invariably_ used as 
+    the npm package name.
+  * [enhancement] A package name is now checked for being a legal npm-registry package
+    name: if not, a warning is given at the first prompt, and, unless a _private_ package
+    is being created, initialization will abort.
+  * [enhancement, experimental] Support for package types added, both to streamline
+    regular package initialization and to add support for specialized packages such as 
+    Alfred 2 workflows.
 
 * **[v0.6.3](https://github.com/mklement0/make-pkg/compare/v0.6.2...v0.6.3)** (2015-10-28):
   * [enhancement] An attempt to run tests now bows out gracefully with a status

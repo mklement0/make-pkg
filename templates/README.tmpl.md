@@ -12,7 +12,7 @@ EOF2
 <!-- START doctoc -->
 <!-- END doctoc -->
 
-# ${vNAME} &mdash; introduction
+# ${vNAME} &mdash; ${vDESCR}
 
 ${vDESCR}
 
@@ -20,7 +20,7 @@ ${vDESCR}
 
 $({ [[ $vPRIVATE == false && $vPREFERGLOBAL == true ]] && 
 cat <<EOF1; } || { [[ $vPRIVATE == false ]] && cat <<EOF2; }
-**Supported platforms**
+## Prerequisites
 
 * When installing from the **npm registry**: $(
     (( ${#vOS_ARRAY[@]} == 0 )) && { echo 'all platforms supported by Node.js / io.js'; exit; }
@@ -78,7 +78,7 @@ EOF
 
 This project gratefully depends on the following open-source components, according to the terms of their respective licenses.
 
-[npm](https://www.npmjs.com/) dependencies below have optional suffixes denoting the type of dependency; the *absence* of a suffix denotes a required *run-time* dependency: `(D)` denotes a *development-time-only* dependency, `(O)` an *optional* dependency, and `(P)` a *peer* dependency.
+[npm](https://www.npmjs.com/) dependencies below have an optional suffix denoting the type of dependency: the *absence* of a suffix denotes a required *run-time* dependency; `(D)` denotes a *development-time-only* dependency, `(O)` an *optional* dependency, and `(P)` a *peer* dependency.
 
 <!-- DO NOT EDIT THE NEXT CHAPTER and RETAIN THIS COMMENT: The next chapter is updated by `make update-readme/release` with the dependencies from 'package.json'. ALSO, LEAVE AT LEAST 1 BLANK LINE AFTER THIS COMMENT. -->
 

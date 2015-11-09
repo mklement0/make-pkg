@@ -5,7 +5,7 @@
 
 **Contents**
 
-- [make-pkg &mdash; Introduction](#make-pkg-&mdash-introduction)
+- [make-pkg &mdash; initialize and maintain npm package projects](#make-pkg-&mdash-initialize-and-maintain-npm-package-projects)
 - [Package initialization (scaffolding)](#package-initialization-scaffolding)
 - [Package release and maintenance](#package-release-and-maintenance)
 - [Supported platforms](#supported-platforms)
@@ -23,7 +23,7 @@
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 
-# make-pkg &mdash; Introduction
+# make-pkg &mdash; initialize and maintain npm package projects
 
 `make-pkg` is a **Unix CLI for initializing [npm](https://www.npmjs.com/) package projects and implementing a release and maintenance workflow**.
 
@@ -122,7 +122,7 @@ projects generated.
 
 With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed, install from the [npm registry](https://www.npmjs.com/package/make-pkg):
 
-    [sudo] npm install make-pkg -g
+    [sudo] npm install -g make-pkg
 
 **Note**:
 
@@ -141,22 +141,32 @@ The following image shows an example interaction with the series of prompts pres
 
 * Create a directory for the new package project.
 * `cd` to it.
-* Run `make-pkg`
+* Run `make-pkg [<pkg-type>]`
+    * [_Experimental_] `<pkg-type>` allows creating a _specific type_ of package:
+      * Specifying a type streamlines the initialization process by skipping certain prompts and assuming appropriate default values.
+      * Additionally, type-specific prompts may be presented, and the resulting package may have additional features and/or a different internal structure.
+      * Conversely, _not_ specifying a type provides the most flexibility for creating a package that contains a JS library and/or a CLI.
+      * Types currently supported are:
+        * `lib`: a regular Node.js library package without a CLI.
+        * `cli`: a CLI-only package, with global installation preferred.
+        * `awf`: an [Alfred 2](https://www.alfredapp.com/) [workflow](https://www.alfredapp.com/workflows/) package
+      * Refer to the [docs](doc/package-types.md) for details.
     * On first use you'll be prompted to specify required global settings and defaults, such as your GitHub username, your website, and your preferred OSS license.
         * To modify settings later, run `make-pkg -e` from any directory.
     * You'll be guided through a series of prompts to create the `package.json` file.
     * On confirming the intent to create the `package.json` file as presented, the remaining tasks - creating the repositories, instantiating templates, creating stubs - run automatically.
-
+      
 **To-dos after the project has been initialized**:
 
-* Flesh out the stub module (in `./lib`) and/or CLI (in `./bin`) with the actual implementation.
+* Flesh out the stub module (in `./lib`) and/or the CLI stub (in `./bin`) with the actual implementation.
+  * Note: The specific to-dos may differ for special package types.
 * Flesh out the stub tests in `./test`.
 * Flesh out `README.md`, making sure to replace instances of "???", the missing-information placeholder.
-* Use the `make` tasks as described [above](#package-release-and-maintenance).
+* Use the `make` tasks as described [above](#package-release-and-maintenance) for releasing and ongoing maintenance.
 
 ## Command-line syntax
 
-Find concise usage information below; for more detailed information read the [manual online](doc/make-pkg.md), or, once installed, run `man make-pkg`.
+Find concise usage information below; for more detailed information, read the [manual online](doc/make-pkg.md), or, once installed, run `man make-pkg`.
 
 <!-- DO NOT EDIT THE FENCED CODE BLOCK and RETAIN THIS COMMENT: The fenced code block below is updated by `make update-readme/release` with CLI usage information. -->
 
@@ -167,12 +177,17 @@ $ make-pkg --help
 Initializes an npm-package project in the current directory and  
 implements a maintenance and release workflow.
     
-    make-pkg [-l] [-f]
+    make-pkg [-l] [-f] [<pkg-type>]
     make-pkg -e
 
     -l            suppresses creation of remote repo on GitHub
     -f            forces running in a non-empty directory
     -e            opens the settings file for editing
+
+    <pkg-type>    [experimental] creates a specific package type:
+                  'lib': JS library (only)
+                  'cli': CLI (only), global installation preferred
+                  'awf': an Alfred 2 workflow
 
 Standard options: --help, --man, --version, --home
 ```
@@ -187,7 +202,8 @@ Copyright (c) 2015 Michael Klement <mklement0@gmail.com> (http://same2u.net), re
 
 This project gratefully depends on the following open-source components, according to the terms of their respective licenses.
 
-[npm](https://www.npmjs.com/) dependencies below have optional suffixes denoting the type of dependency; the absence of a suffix denotes a required run-time dependency: `(D)` denotes a development-time-only dependency, `(O)` an optional dependency, and `(P)` a peer dependency.
+[npm](https://www.npmjs.com/) dependencies below have an optional suffix denoting the type of dependency: the *absence* of a suffix denotes a required *run-time* dependency; `(D)` denotes a *development-time-only* dependency, `(O)` an *optional* dependency, and `(P)` a *peer* dependency.
+
 
 <!-- DO NOT EDIT THE NEXT CHAPTER and RETAIN THIS COMMENT: The next chapter is updated by `make update-readme/release` with the dependencies from 'package.json'. ALSO, LEAVE AT LEAST 1 BLANK LINE AFTER THIS COMMENT. -->
 
@@ -211,7 +227,17 @@ Since this utility is applied only _once_ to a given package - in order to initi
 maintaining compatibility is less important. However, larger changes will be reflected
 in higher version-number increases.
 
-<!-- NOTE: An entry template is automatically added each time `make version` is called. Fill in changes afterwards. -->
+<!-- RETAIN THIS COMMENT. An entry template is automatically added each time `make version` is called. Fill in changes afterward. -->
+
+* **[v0.7.0](https://github.com/mklement0/make-pkg/compare/v0.6.3...v0.7.0)** (2015-11-08):
+  * [behavioral change] The package's directory name is now _invariably_ used as 
+    the npm package name.
+  * [enhancement] A package name is now checked for being a legal npm-registry package
+    name: if not, a warning is given at the first prompt, and, unless a _private_ package
+    is being created, initialization will abort.
+  * [enhancement, experimental] Support for package types added, both to streamline
+    regular package initialization and to add support for specialized packages such as 
+    Alfred 2 workflows.
 
 * **[v0.6.3](https://github.com/mklement0/make-pkg/compare/v0.6.2...v0.6.3)** (2015-10-28):
   * [enhancement] An attempt to run tests now bows out gracefully with a status

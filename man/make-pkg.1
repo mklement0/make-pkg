@@ -1,4 +1,4 @@
-.TH "MAKE\-PKG" "1" "October 2015" "v0.6.3" ""
+.TH "MAKE\-PKG" "1" "November 2015" "v0.7.0" ""
 .SH "NAME"
 \fBmake-pkg\fR \- initialize and maintain npm package projects
 .SH SYNOPSIS
@@ -9,12 +9,17 @@ implements a maintenance and release workflow\.
 .P
 .RS 2
 .nf
-make\-pkg [\-l] [\-f]
+make\-pkg [\-l] [\-f] [<pkg\-type>]
 make\-pkg \-e
 
 \-l            suppresses creation of remote repo on GitHub
 \-f            forces running in a non\-empty directory
 \-e            opens the settings file for editing
+
+<pkg\-type>    [experimental] creates a specific package type:
+              'lib': JS library (only)
+              'cli': CLI (only), global installation preferred
+              'awf': an Alfred 2 workflow
 .fi
 .RE
 .P
@@ -39,6 +44,13 @@ run \fBmake\-pkg\fP there\.
 On first run you'll be prompted for settings, including creation of a GitHub
 .br
 authorization token\.
+.P
+Not specifying \fB<pkg\-type>\fP presents the full set of prompts for creating a
+a library and/or CLI npm package\.
+.br
+Package types other than 'lib' and 'cli' offer additional, type\-specific
+.br
+features\.
 .P
 In addition to initializing package\-configuration file 'package\.json'
 .br

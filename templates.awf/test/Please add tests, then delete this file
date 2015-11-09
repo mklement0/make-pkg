@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+# NOTE
+# 
+# You can add tests to this directory ("$thisDir"), and then either delete or 
+# rename and repurpose this file.
+# As it stands, this test invariably reports success and is therefore a no-op.
+#
+# Tests are expected to be *shell scripts* run by *Urchin*;
+# see https://github.com/tlevine/urchin
+#
+# Testing Alfred workflows is non-trivial, but you may want to add tests for
+# your workflow's *CLIs* that are used behind the scenes.
+
+# ---
+# IMPORTANT: Use the following statement at the TOP OF EVERY TEST SCRIPT
+#            to ensure that this package's 'bin/' subfolder is added to the path so that
+#            this package's CLIs can be invoked by their mere filename in the rest
+#            of the script.
+# ---
+PATH=${PWD%%/test*}/bin:$PATH
+
+# Helper function for error reporting.
+die() { (( $# > 0 )) && echo "ERROR: $*" >&2; exit 1; }
+
+exit 0

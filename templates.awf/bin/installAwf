@@ -1,0 +1,467 @@
+#!/usr/bin/env bash
+
+# NOTE:
+#  This script is NOT installed as a binary (via the "bin" key in file package.json)
+#  Instead, this script is called in two scenarios
+#  As a package-install/uninstall HOOK script (via the "scripts.post[un]install" keys in package.json)
+#    - triggers import of this package's workflow into Alfred on installation
+#    - removes the workflow from Alfred on uninstallation of this package.
+#  When this package is initially created by make-pkg:
+#    - Offers installation of workflow-management utility `awf`
+#    - Symlinks the alfredworkflow/ source folder into Alfred's folder of
+#      installed workflows to allow use and modification of the workflow source
+#      folder from Alfred.
+
+
+kTHIS_NAME=${BASH_SOURCE##*/}
+
+CDPATH=  # To ensure predictable `cd` behavior.
+
+# ------- BEGIN: helper functions
+
+die() { echo "$kTHIS_NAME: ERROR: ${1:-"ABORTING due to unexpected error."}" 1>&2; exit ${2:-1}; }
+dieSyntax() { echo "$kTHIS_NAME: ARGUMENT ERROR: ${1:-"Invalid argument(s) specified."} Use -h for help." 1>&2; exit 2; }
+
+# SYNOPSIS
+#   rreadlink <fileOrDirPath>
+# DESCRIPTION
+#   Prints the canonical path of the specified symlink's ultimate target.
+#   If the argument is not a symlink, its own canonical path is output; note
+#   that this means that if a non-symlink argument has symlinks in its
+#   *directory* path, they are resolved to their ultimate target.
+#   A broken symlink causes an error that reports the non-existent target.
+# NOTES
+#   Attempts to use `readlink`, which is found on most modern platforms
+#   (notable exception: HP-UX). If `readlink` is not available, output from
+#   `ls -l` is parsed, which is the only POSIX-compliant way to determine a 
+#    symlink's target.
+#    Caveat: This will break if a filename contains literal ' -> ' or has 
+#            embedded newlines.
+# THANKS
+#   Gratefully adapted from http://stackoverflow.com/a/1116890/45375
+rreadlink() ( # execute function in a *subshell* to localize the effect of `cd`, ...
+
+  local target=$1 fname targetDir readlinkexe=$(command -v readlink) CDPATH= 
+
+  # Since we'll be using `command` below for a predictable execution
+  # environment, we make sure that it has its original meaning.
+  { \unalias command; \unset -f command; } &>/dev/null
+
+  while :; do # Resolve potential symlinks until the ultimate target is found.
+      [[ -L $target || -e $target ]] || { command printf '%s\n' "$FUNCNAME: ERROR: '$target' does not exist." >&2; return 1; }
+      command cd "$(command dirname -- "$target")" # Change to target dir; necessary for correct resolution of target path.
+      fname=$(command basename -- "$target") # Extract filename.
+      [[ $fname == '/' ]] && fname='' # !! curiously, `basename /` returns '/'
+      if [[ -L $fname ]]; then
+        # Extract [next] target path, which is defined
+        # relative to the symlink's own directory.
+        if [[ -n $readlinkexe ]]; then # Use `readlink`.
+          target=$("$readlinkexe" -- "$fname")
+        else # `readlink` utility not available.
+          # Parse `ls -l` output, which, unfortunately, is the only POSIX-compliant 
+          # way to determine a symlink's target. Hypothetically, this can break with
+          # filenames containig literal ' -> ' and embedded newlines.
+          target=$(command ls -l -- "$fname")
+          target=${target#* -> }
+        fi
+        continue # Resolve [next] symlink target.
+      fi
+      break # Ultimate target reached.
+  done
+  targetDir=$(command pwd -P) # Get canonical dir. path
+  # Output the ultimate target's canonical path.
+  # Note that we manually resolve paths ending in /. and /.. to make sure we
+  # have a normalized path.
+  if [[ $fname == '.' ]]; then
+    command printf '%s\n' "${targetDir%/}"
+  elif  [[ $fname == '..' ]]; then
+    # Caveat: something like /var/.. will resolve to /private (assuming
+    # /var@ -> /private/var), i.e. the '..' is applied AFTER canonicalization.
+    command printf '%s\n' "$(command dirname -- "${targetDir}")"
+  else
+    command printf '%s\n' "${targetDir%/}/$fname"
+  fi
+)
+
+#   dirHasJxaScripts <folder>
+# Indicates via exit code if there are any scripts (directly) in the target
+# folder with a JXA shebang line ('...osascript -l JavaScript').
+# <folder> defaults to the current dir.
+dirHasJxaScripts() {
+  # Note: The 2>/dev/null silences errors from trying to read *subdirs*.
+  [[ -n "$(head -n 1 "${1:-.}"/* 2>/dev/null | LC_ALL=C sed -n '/^#!.*osascript.*-l.*JavaScript/p')" ]]
+}
+
+# Compares 2 version strings (thanks, http://stackoverflow.com/a/4025065/45375)
+#   - supports *numerical* components only
+#   - leading zeros in components are ignored
+# Result is indicated via *return value*:
+#  0 == identical
+#  1 == v1 > v2, "1st version is higher"
+#  2 == v1 < v2, "2nd version is higher"
+# Example:
+#   vercomp 2.1 2.2  # -> returns exit code 2, because 2.1 < 2.2
+vercomp () {
+    [[ $1 == "$2" ]] && return 0
+    local i v1=$1 v2=$2
+    # As a courtesy, remove an initial 'v', if present
+    [[ ${v1:0:1} == 'v' ]] && v1=${v1:1}
+    [[ ${v2:0:1} == 'v' ]] && v2=${v2:1}    
+    local IFS='.'
+    local i vna1=( $v1 ) vna2=( $v2 )
+    # fill empty fields in vna1 with zeros
+    for ((i=${#vna1[@]}; i<${#vna2[@]}; i++)); do
+        vna1[i]=0
+    done
+    for ((i=0; i<${#vna1[@]}; i++)); do
+        # Fill empty fields in vna2 with zeros
+        [[ -z ${vna2[i]} ]] && vna2[i]=0
+        (( 10#${vna1[i]} > 10#${vna2[i]} )) && return 1
+        (( 10#${vna1[i]} < 10#${vna2[i]} )) && return 2
+    done
+    return 0
+}
+
+getInstalledWfsRootFolder() {
+  local plist parentFolder folder
+  plist="$HOME/Library/Preferences/com.runningwithcrayons.Alfred-Preferences.plist"
+  [[ -f $plist ]] || die "Cannot locate Alfred's preferences plist file: $plist"
+  # Look for a sync folder first...
+  parentFolder=$(/usr/libexec/PlistBuddy -c 'print :syncfolder' "$plist" 2> /dev/null)
+  if [[ -n $parentFolder ]]; then
+    [[ ${parentFolder:0:1} == '~' ]] && parentFolder="$HOME${parentFolder:1}"
+  else # look in default location
+    parentFolder="$HOME/Library/Application Support/Alfred 2"
+  fi
+  folder="$parentFolder/Alfred.alfredpreferences"
+  [[ -d $folder ]] || die "Cannot locate Alfred's user preferences folder: $folder"
+  printf '%s\n' "$folder/workflows"
+}
+
+
+# Returns the full path of the Alfred 2 workflow folder hosting the workflow with the specified bundle ID.
+# If there is no such workflow, the exit code is set to 1 and nothing is output.
+getInstalledWfFolderByBundleId() {
+  local bundleId=$1 wfRootFolder
+  wfRootFolder=$(getInstalledWfsRootFolder)
+  for f in "$wfRootFolder/"*"/info.plist"; do
+    { /usr/libexec/PlistBuddy -c 'print "bundleid"' "$f" 2>/dev/null | fgrep -qix "$bundleId"; } && { dirname -- "$f"; return 0; }
+  done
+  return 1
+}
+
+
+#   getMinOsVer <plistFile>
+# Parses the 'readme' field in the specified info.plist file for a minimum OS X
+# version requirement and returns the version number found.
+# The case-insensitive phrase "requires OS X 10.x[.x]" is recognized anywhere
+# in the text, irrespective of whitespace.
+getMinOsVer() {
+
+  local plistFile=$1 readmeText
+
+  readmeText=$(/usr/libexec/PlistBuddy -c 'print :readme' "$plistFile")
+
+  tr -d '[:space:]' <<<"$readmeText" | grep -Eio "requiresosx(10\.[.[:digit:]]+)" | tr -C -d '.[:digit:]'
+
+}
+
+# Indicates via exit code if installing an npm package globally (with -g)
+# requires `sudo`.
+globalNpmInstallRequiresSudo() {
+  [[ ! -w "$(npm get prefix)" ]]
+}
+
+# During package initilazation: Sets up integration of this package's
+# workflow source folder with Alfred, via `awf`.
+devSetup() {
+
+  local awfInstCmd promptInput bundleid wfSourceDir wfInstalledFoldersRootDir wfExistingInstalledWfDir wfExistingInstalledWfDirSymlinkTarget editNow
+  
+  # Get the full path to this package's workflow source folder.
+  wfSourceDir="$(rreadlink "$(dirname -- "$BASH_SOURCE")")/../alfredworkflow"
+  wfSourceDir=$(cd -- "$wfSourceDir"; pwd)
+  
+  wfInstalledFoldersRootDir=$(getInstalledWfsRootFolder)
+
+  cat <<EOF
+NOTE:
+  
+  A blank dev Alfred 2 workflow has been initialized in:
+
+    $wfSourceDir
+
+  To use and develop it from Alfred, a *symlink* to it must be created in the
+  folder hosting all installed workflows:
+
+    $wfInstalledFoldersRootDir
+
+  CLI \`awf\` (see https://github.com/mklement0/awf) helps you do this; unless
+  already installed, you will be offered global installation now.
+
+EOF
+
+  # Offer installation of `awf`, if necessary.
+  if ! which awf >/dev/null; then
+    # Simple y/n (Boolean) prompt via case-INsensitive 'y' or 'n' input.
+    # Skips the prompt if $skipPrompt is set to 1.
+    # NO DEFAULT - valid input MUST be provided.
+    while :; do
+      read -p "Install \`awf\` from the npm registry as a global CLI? (y/n) " promptInput
+      [[ $promptInput =~ ^[yY]$ ]] && break # OK
+      [[ $promptInput =~ ^[nN]$ ]] && { echo "Aborted. Please manually create a symlink to '$wfSourceDir' in '$wfInstalledFoldersRootDir'." >&2; return 1; }
+      echo "Invalid input; please try again (^C to abort)." >&2
+    done
+    # Getting here means that the user confirmed.
+    awfInstCmd=()
+    if globalNpmInstallRequiresSudo; then
+      awfInstCmd+=( sudo )
+    fi
+    awfInstCmd+=( npm install -g awf )
+    "${awfInstCmd[@]}" || { echo "Aborting, because \`awf\` couldn't be installed." >&2; return 1; }
+  fi
+
+  # Get this package's workflow's bundle ID.
+  bundleid=$(awf id "$wfSourceDir") || { echo "Failed to determine this dev workflow's bundle ID." >&2; return 1; }
+  
+  # Does the bundle ID already exist among the installed workflows?
+  wfExistingInstalledWfDir=$(awf which "$bundleid" 2>/dev/null)
+  
+  if [[ -L $wfExistingInstalledWfDir ]]; then # the existing installed folder is itself a symlink 
+    wfExistingInstalledWfDirSymlinkTarget=$(readlink "$wfExistingInstalledWfDir")
+    if [[ "$wfExistingInstalledWfDirSymlinkTarget" == "$wfSourceDir" ]]; then
+      echo "(Retaining existing symlink among the installed folders to this package's dev workflow folder.)" >&2
+    else
+      { echo "ERROR: A workflow with bundle ID '$bundleid' already exists as an installed folder, but it is a symlink to a different dev folder, '$wfExistingInstalledWfDirSymlinkTarget'. Please resolve the conflict manually." >&2; return 1; }
+    fi
+  elif [[ -n $wfExistingInstalledWfDir ]]; then # there's already a non-symlinked installed workflow with this bundle ID
+    # Offer to move the contents of the existing installed workflow here and replace its folder with a symlink to here.
+    while :; do
+      read -p "WARNING: An installed workflow with bundle ID '$bundleid' already exists. Move its contents to this package and replace it with a symlink here? (y/n) " promptInput
+      [[ $promptInput =~ ^[yY]$ ]] && break
+      [[ $promptInput =~ ^[nN]$ ]] && { echo "WARNING: Existing installed workflow with bundle ID '$bundleid' retained. Please resolve the conflict manually." >&2;return 1; }
+      echo "Invalid input; please try again (^C to abort)." >&2
+    done    
+    # Clear existing contents of this package's workflow source folder before moving the existing one's, otherwise `awf todev` will fail.
+    (shopt -s dotglob; rm "$wfSourceDir"/*)
+    # Move existing installed workflow's contents here and replace its folder with symlink to here.
+    awf todev "$wfExistingInstalledWfDir" "$wfSourceDir" || return
+    echo "WARNING: Be sure to check the moved workflow's metadata." >&2
+  else # no installed workflow with this bundle ID exists yet
+    # Create symlink to the new workflow among the installed folders.
+    # Note: We use -f, because, hypothetically, there could be an existing *broken* symlink with the target name among the installed folders.
+    awf link -f "$wfSourceDir" || return
+  fi
+
+  # Finally, offer editing the new workflow in Alfred Preferences.app now.
+  editNow=0
+  while :; do
+    read -p "Do you want to edit this workflow in Alfred's Preferences now? (y/N) " promptInput
+    [[ $promptInput =~ ^[yY]$ ]] && { editNow=1; break; }
+    [[ $promptInput =~ ^[nN]$|^$ ]] && break
+    echo "Invalid input; please try again (^C to abort)." >&2
+  done
+
+  (( editNow )) && awf edit "$wfSourceDir"
+
+  echo "To edit this workflow in Alfred's Preferences in the future, run \`awf edit $bundleid\`."
+
+  echo "-- Dev workflow successfully integrated with Alfred: ${wfSourceDir/#"$PWD"/.}"
+
+  return 0
+
+}
+
+# ------- END: helper functions
+
+case $1 in
+   -h|--help)
+    # Print usage information and exit.
+    cat <<EOF
+$kTHIS_NAME [-u | -p]
+
+No arguments:
+  Opens this package's *.alfredworkflow archive so as to prompt Alfred 2
+  to import it, thereby installing the workflow.
+
+-u, --uninstall
+  Uninstalls this package's workflow from Alfred 2, using the bundle ID
+  to identify it.
+
+-p, --dev-setup
+  Initializes this package for development by offering to install the awf
+  utility and symlinking the './alfredworkflow' workflow source folder 
+  into Alfred's folder of installed workflows to allow use and modification of
+  the workflow from Alfred.
+  Called by make-pkg on creation of the package.
+EOF
+    exit 0
+esac
+
+# Option defaults
+uninstall=0
+devSetup=0
+
+# ----- BEGIN: OPTIONS PARSING: This is MOSTLY generic code, but:
+#  - SET allowOptsAfterOperands AFTER THIS COMMENT TO 1 to ALLOW OPTIONS TO BE MIXED WITH OPERANDS rather than requiring all options to come before the 1st operand, as POSIX mandates.
+#  - The SPECIFIC OPTIONS MUST BE HANDLED IN A CASE ... ESAC STATEMENT BELOW; look for "BEGIN: CUSTOMIZE HERE ... END: CUSTOMIZE HERE"
+#  - Assumes presence of function dieSyntax(); if not present, define as: dieSyntax() { echo "${BASH_SOURCE##*/}: ARGUMENT ERROR: ${1:-"Invalid argument(s) specified."} Use -h for help." >&2; exit 2; }
+#  - After the end of options parsing, $@ only contains the operands (non-option arguments), if any.
+allowOptsAfterOperands=1 operands=() i=0 optName= isLong=0 prefix= optArg= haveOptArgAttached=0 haveOptArgAsNextArg=0 acceptOptArg=0 needOptArg=0
+while (( $# )); do
+  if [[ $1 =~ ^(-)[a-zA-Z0-9]+.*$ || $1 =~ ^(--)[a-zA-Z0-9]+.*$ ]]; then # an option: either a short option / multiple short options in compressed form or a long option
+    prefix=${BASH_REMATCH[1]}; [[ $prefix == '--' ]] && isLong=1 || isLong=0
+    for (( i = 1; i < (isLong ? 2 : ${#1}); i++ )); do
+        acceptOptArg=0 needOptArg=0 haveOptArgAttached=0 haveOptArgAsNextArg=0 optArgAttached= optArgOpt= optArgReq=
+        if (( isLong )); then # long option: parse into name and, if present, argument
+          optName=${1:2}
+          [[ $optName =~ ^([^=]+)=(.*)$ ]] && { optName=${BASH_REMATCH[1]}; optArgAttached=${BASH_REMATCH[2]}; haveOptArgAttached=1; }
+        else # short option: *if* it takes an argument, the rest of the string, if any, is by definition the argument.
+          optName=${1:i:1}; optArgAttached=${1:i+1}; (( ${#optArgAttached} >= 1 )) && haveOptArgAttached=1
+        fi
+        (( haveOptArgAttached )) && optArgOpt=$optArgAttached optArgReq=$optArgAttached || { (( $# > 1 )) && { optArgReq=$2; haveOptArgAsNextArg=1; }; }
+        # ---- BEGIN: CUSTOMIZE HERE
+        case $optName in
+          u|uninstall)
+            uninstall=1
+            ;;
+          p|dev-setup)
+            devSetup=1
+            ;;
+          *)
+            dieSyntax "Unknown option: ${prefix}${optName}."
+            ;;
+        esac
+        # ---- END: CUSTOMIZE HERE
+        (( needOptArg )) && { (( ! haveOptArgAttached && ! haveOptArgAsNextArg )) && dieSyntax "Option ${prefix}${optName} is missing its argument." || (( haveOptArgAsNextArg )) && shift; }
+        (( acceptOptArg || needOptArg )) && break
+    done
+  else # an operand
+    if [[ $1 == '--' ]]; then
+      shift; operands+=( "$@" ); break
+    elif (( allowOptsAfterOperands )); then
+      operands+=( "$1" ) # continue 
+    else
+      operands=( "$@" )
+      break
+    fi
+  fi
+  shift
+done
+(( "${#operands[@]}" > 0 )) && set -- "${operands[@]}"; unset allowOptsAfterOperands operands i optName isLong prefix optArgAttached haveOptArgAttached haveOptArgAsNextArg acceptOptArg needOptArg
+# ----- END: OPTIONS PARSING: "$@" now contains all operands (non-option arguments).
+
+(( uninstall && devSetup )) && dieSyntax "Incompatible options specified."
+
+# No operands supported.
+(( $# )) && dieSyntax
+
+# ------- Handle setup for development, called 
+if (( devSetup )); then
+  devSetup; exit
+fi
+# -------
+
+# !! If we're being called in the context of *reinstallation* IGNORE the 
+# !! the uninstall command.
+if (( uninstall )); then
+  # npm_config_argv contains a JSON object with the arguments passed to `npm`
+  # on invocation: if it contains the the `install` command [or any prefix string], we
+  # know we're being called in the context of REinstallation, in which case we 
+  # do NOT want to uninstall, lest we lose customizations.
+  [[ ${npm_config_argv// } =~ '":["i' ]] && { echo "(No workflow uninstallation during reinstallation.)" >&2; exit 0; }
+else # !! If the installation command is being called in the context of package *initialization* by make-pkg (which invokes `npm install` to install the package dependencies), IGNORE the invocation.
+  (( MAKE_PKG_RUNNING )) && { echo "($kTHIS_NAME: Ignoring invocation during package initialization.)"; exit 0; }
+fi
+
+# -- BEGIN: Determine names and filesystem locations and check package integrity.
+# Determine this package's true directory (symlinks resolved).
+# Note that the package dir is the *parent* of this script's dir.
+packageDir="$(rreadlink "$(dirname -- "$BASH_SOURCE")")/.."
+wfSourceDir="$packageDir/alfredworkflow"
+wfArchiveFile=$(printf %s "$packageDir"/archive/*.alfredworkflow)
+
+# Derive the package name from it (simply use the folder name)
+packageName=$(cd -- "$packageDir"; printf %s "$(basename "$PWD")")
+
+# The path to the workflow's info.plist file.
+plistFile="$wfSourceDir/info.plist"
+
+# Get the bundle ID.
+# Note that while we don't strictly need it for *installation*, we do require
+# it just the same, as installing without a bundle ID would mean inability to
+# uninstall later.
+bundleid=$(/usr/libexec/PlistBuddy -c 'print :bundleid' "$plistFile")
+[[ -n $bundleid && $bundleid != '* *' ]] || die "Failed to determine $packageName's bundle ID."
+
+# -- END: Determine names and filesystem locations.
+
+# set | egrep '^npm_'
+
+# Sanity check: is Alfred 2 installed?
+alfredVer=$(osascript -e 'version of application "Alfred 2"')
+[[ -n $alfredVer ]] || die "'Alfred 2' must be installed to install this workflow - see http://alfredapp.com"
+
+if (( uninstall )); then # uninstall
+
+  # Locate the installed folder 
+  wfInstalledFolder=$(getInstalledWfFolderByBundleId "$bundleid")
+  [[ -d $wfInstalledFolder ]] || { echo "(Nothing to uninstall: looks like workflow $packageName ($bundleid) is not installed (anymore).)" >&2; exit 0; }
+
+  # We do NOT prompt on uninstallation so as to facilitate automated uninstalls,
+  # as is the general expectation with npm commands.
+
+  rm -rf "$wfInstalledFolder"
+
+  [[ -d $wfInstalledFolder ]] && die "Uninstallation of workflow $packageName ($bundleid) failed: could not remove folder '$wfInstalledFolder'"
+
+  echo "Workflow $packageName ($bundleid) successfully uninstalled."
+
+else # install
+  
+  # First, make sure the archive file exists.
+  [[ -f $wfArchiveFile ]] || die "Package corrupted: workflow archive file 'archive/*.alfredworkflow' not found."
+  
+  # Check if the workflow has an explicitly stated minimum OS X version requirement.
+  # !! Since there's no dedicated field in the 'info.plist' we scan the 'readme'
+  # !! field, which is expected to contains a phrase like 'requires OS X 10.x[.x]'
+  # !! - case and whitespace are ignored.
+  minOsVer=$(getMinOsVer "$plistFile")
+
+  # As a courtesy, if no explicit min. version is stated, look for JXA
+  # scripts in the workflow and set the min. version to OS X 10.10, if any
+  # are found.
+  if [[ -z $minOsVer ]] && dirHasJxaScripts "$wfSourceDir"; then
+    minOsVer=10.10 # JXA requires 10.10+
+  fi
+
+  if [[ -n $minOsVer ]]; then
+    osVer=$(osascript -e 'system version of (system info)') || die "Failed to determine the OS version."
+    vercomp "$osVer" "$minOsVer"
+    (( $? <= 1 )) || die "This workflow requires OS X $minOsVer or higher; this is OS X $osVer"
+  fi
+
+  cat <<EOF
+Installing workflow $packageName by opening '$wfArchiveFile'...
+
+ * Alfred 2 will open and show a confirmation prompt.
+ * CAVEAT: If you uninstall this package later with \`npm rm -g $packageName\`, 
+           there will be NO confirmation prompt before removing the workflow
+           from Alfred 2.
+
+EOF
+  # NOTE: Alfred will invariably PROMPT to import (including a visually prominent warning when
+  #       *replacing* an existing workflow).
+  #       This makes sense: you want to customize a workflow right after installing it
+  #       and, in the case of replacement, know that you're replacing (and possibly
+  #       tweak afterward).
+  #       This, fortunately, doesn't block the npm commmand itself,
+  #       but trying to install MULTIPLE workflows with a single `npm install`
+  #       will fail, because the FIRST workflow's prompt in Alfred Preferences
+  #       will *block* subsequent imports.
+  open -- "$wfArchiveFile" || die "Installation of '$wfArchiveFile' failed."
+
+fi
+
+
+exit 0

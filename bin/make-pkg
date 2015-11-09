@@ -14,19 +14,9 @@
 
 kTHIS_HOMEPAGE='https://github.com/mklement0/make-pkg'
 kTHIS_NAME=${BASH_SOURCE##*/} # this script's name
-kTHIS_VERSION='v0.6.3' # NOTE: This assignment is automatically updated by `make version VER=<newVer>` - DO keep the 'v' prefix.
+kTHIS_VERSION='v0.7.0' # NOTE: This assignment is automatically updated by `make version VER=<newVer>` - DO keep the 'v' prefix.
 
 unset CDPATH  # To prevent unexpected `cd` behavior.
-
-: <<'FOO'
-
-## SYNOPSIS
-
-aga
-
-#
-
-FOO
 
 # --- Begin: STANDARD HELPER FUNCTIONS
 
@@ -213,7 +203,7 @@ toJsonArray() {
 #   Returns a multi-line JSON object with the specified indentation comprising the specified key-value pairs.
 #   Each key-value pair is assumed to be preformatted as valid JSON.
 # EXAMPLES
-#   toJsonObject ' ' '"one": 1' '"two": "zwei"' # -> $'\n {\n     "one": 1\n   , "two": "zwei\n }\n'
+#   toJsonObject ' ' '"one": 1' '"two": "zwei"' # -> $'\n {\n     "one": 1\n   , "two": "zwei"\n }\n'
 toJsonObject() {
   local indent=$1; shift
   printf "\n${indent}{\n"
@@ -692,6 +682,22 @@ setProperty() {
   return 0
 }
 
+# Given a URL, returns the URL's domain in reverse notation
+# EXAMPLE
+#   getReverseDomainName 'http://www.same2u.net/news' # -> 'net.same2u'
+getReverseDomainName() {
+  local url=$1 components i result
+  url=${url/#http:\/\/}
+  url=${url/#https:\/\/}
+  url=${url/#www.}
+  url=${url%%/*}
+  IFS='.' read -ra components <<<"$url"
+  for (( i = ${#components[@]} - 1; i > 0; i-- )); do
+    result+="${components[i]}."
+  done
+  result+="${components[i]}"
+  printf '%s\n' "$result"
+}
 
 # SYNOPSIS
 #   editSettings file templateFile
@@ -828,6 +834,15 @@ mapKeysToValues() {
   ' - <(printf '%s\n' "${@: 1:$#/2}") <(printf '%s\n' "${@: 1+$#/2}")
 }
 
+# Indicates if the specified name is a legal npm package name.
+# See https://docs.npmjs.com/files/package.json#name
+isLegalNpmPackageName() {
+  local name=$1
+  [[ $name =~ ^[._] || $name =~ [[:upper:]] ]] && return 1
+  [[ $name =~ ^[a-z0-9._~-]+$ ]] || return 1
+  (( ${#name} >= 214 )) && return 1
+  return 0
+}
 
 # =================== END: Helper functions
 
@@ -853,6 +868,13 @@ kSETTINGS_FILE=${MAKE_PKG_RC:-~/$(basename "$kSETTINGS_FILE_TEMPLATE")}
 # The IDs of the OSs supported by Node.js, as reported by `process.platform`.
 kOS_IDS=(   'darwin' 'freebsd' 'linux' 'sunos' 'win32'  )
 kOS_NAMES=( 'OSX'   'FreeBSD' 'Linux' 'SunOS' 'Windows' ) # !! Due to limitations in the templating system, these array elements mustn't contain whitespace or other chars. that need quoting for the shell.
+
+# We export a variable that indicates to child processes that make-pkg is being run,
+# which is helpful for installation-hook scripts that will also
+# get invoked when `npm install` is run in the new package folder below (to install dependencies).
+# It allows such scripts to distinguish between invocation then (during package initialization)
+# and later invocation during actual installation from the npm registry.
+export MAKE_PKG_RUNNING=1
 
 # ----- END: Script-global constants
 
@@ -880,8 +902,11 @@ done
 
 shift $((OPTIND - 1)) # Skip the already-processed arguments (options).
 
+# Optional package type.
+pkgType=$1; shift
+
 # Test for incompatible options
-(( force && edit )) && dieSyntax "Incompatible options specified."
+(( edit && (force || localOnly) )) || [[ $edit -eq 1 && -n $pkgType ]] && dieSyntax "Incompatible options specified."
 
 # Make sure that not too many arguments were specified.
 (( $# == 0 )) || dieSyntax "Unexpected argument(s) specified: $*"
@@ -1077,12 +1102,12 @@ EOF
 
   # DERIVED PACKAGE-SPECIFIC defaults.
 
-  vNAME=$(basename "$PWD")    # The package's name.
-  vMAIN='${vNAME}.js'         # Main JS module filename - default to the package name - WILL BE EXPANDED *DURING* PROMPTS, based on chosen package name.
+  vNAME=$(basename -- "$PWD")    # The package's name: for consistency and simplicity, *invariably* the same as the current directory name.
+  vMAIN="${vNAME}.js"            # Main JS module filename - default to the package name + '.js'
 
   # !! Since the following depend on values the user can change when prompted below, we must defer deriving their values until after the prompts.
   # !! Note how they're defined with SINGLE quotes, as TEMPLATES - to be expanded LATER, via expandVars()
-  # !! VARIABLES DEFINED HERE MAY OR MAY NOT BE INCLUDED DIRECTLY IN PACKAGE.JSON - SOME ARE ONLY REFERENCED FROM *.TMPL FILES IN THIS PACKAGE.
+  # !! VARIABLES DEFINED HERE MAY OR MAY NOT BE INCLUDED DIRECTLY IN PACKAGE.JSON - SOME ARE ONLY REFERENCED FROM *TEMPLATES* (*.TMPL FILES) IN THIS PACKAGE.
   # !! DO NOT ASSUME THAT A VARIABLE CAN BE REMOVED JUST BECAUSE ITS VALUE ISN'T USED IN THE CREATION OF package.json
   delayedExpansionVars=( vHOMEPAGE vREPO_URL vBUGS_URL vLIC_URL )
   vHOMEPAGE='https://github.com/${vGITHUB_USERNAME}/${vNAME}'
@@ -1102,50 +1127,127 @@ done  # while : - dummy loop for potentially re-reading settings after editing
 # ----- END: Settings. They are read from the settings file and/or derived from other sources.
 
 
+# ---- Define variables to prompt for and their default values.
+
+# Prompt definitions (hints); add '(*)' to mandatory fields.
+kLIC_PROMPT=$'LICENSE (SPDX ID; e.g., MIT, GPL-3.0,  LGPL-3.0, BSD-3-Clause, Apache-2.0, MPL-2.0, CDDL-1.0, EPL-1.0; "+" suffix for or-later logic, where supported)\n'
+kOS_PROMPT='SUPPORTED OSs, separated with ","; exclude with "!" prefix; blank = no restriction (darwin, freebsd, linux, sunos, win32)'
+kHINTS=(     'PRIVATE (do not publish to npm registry)?'  'Short (single-line) DESCRIPTION (*)'  'Prefer GLOBAL installation (for CLI-only projects) (*)?'   '"bin" (CLI) entries (filename(s) only, location ./bin implied; separated with "," - optional, if not global)'  'MAIN MODULE *.js file (filename only, location ./lib implied; optional, if global)'   "$kOS_PROMPT"  'KEYWORDS, separated with "," (*)' "$kLIC_PROMPT"  )
+kVAR_NAMES=( vPRIVATE                                     vDESCR                                  vPREFERGLOBAL                                               vBIN_LIST                                                                                                       vMAIN                                                                                 vOS_LIST      vKEYWORD_LIST                        vLIC_SPDX_ID )
+
+# -- PACKAGE-TYPE SUPPORT
+varPromptsToSkip=()
+vPACKAGE_SCRIPTS=( '"test": "make test"' )
+vPOSTINIT_CMD=()  # optional command to run post-initialization
+case $pkgType in
+  '') # no package type specified
+    # Present full set of prompts for creating lib and/or CLI npm packages.
+    ;;
+  cli) # CLI-only package, with global installation preferred
+    # Define what prompts should be skipped due to implied defaults...
+    varPromptsToSkip=( vPREFERGLOBAL vBIN_LIST vMAIN )
+    # ... and define the *implied default values*:
+    vPREFERGLOBAL='true'
+    vMAIN=
+    vBIN_FIRST=$vNAME
+    vBIN_MAP=$(toJsonObject '    ' "\"${vBIN_FIRST}\": \"bin/${vBIN_FIRST}\"")
+    ;;
+  lib) # (JS) library-only package
+    # Define what prompts should be skipped due to implied defaults...
+    varPromptsToSkip=( vPREFERGLOBAL vBIN_LIST vMAIN )
+    # ... and define the *implied default values*:
+    vPREFERGLOBAL='false'
+    # vMAIN is already initialized
+    ;;
+  awf) # Alfred 2 workflow packages
+    # Check prerequisites
+    [[ $vNAME == *'.awf' ]] || die "An Alfred 2 workflow package name must end in '.awf'; please rename the current directory and try again."
+    # Add the post[un]installation scripts that [un]install the workflow from/in Alfred.
+    vPACKAGE_SCRIPTS+=( '"postinstall": "./bin/installAwf"' '"postuninstall": "./bin/installAwf -u"' )
+    # Define the post-initialization command to run.
+    vPOSTINIT_CMD=( ./bin/installAwf --dev-setup )
+    # Define what prompts should be skipped due to implied defaults...
+    varPromptsToSkip=( vPREFERGLOBAL vBIN_LIST vMAIN vOS_LIST )
+    # ... and define the *implied default values*:
+    vPREFERGLOBAL='true'
+    vMAIN=''
+    vOS_JSON_ARRAY=$(toJsonArray '    ' 'darwin') 
+    # ... complementarily, define *edit-buffer* defaults that prefill the 
+    # prompt buffer to be *complemented/modified by the user*:
+    # !! AS OF OSX 10.11.1, when using the AppleScript-based workaround with Bash 3.x,
+    # THE keystroke APPLESCRIPT COMMAND IGNORES "." CHARS. AND DIGITS DUE TO A BUG.
+    vDESCR_EDITBUFDEFAULT='An Alfred workflow '
+    vKEYWORD_LIST_EDITBUFDEFAULT='osx, awf, alfred, workflow, '
+    # Add additional, package-type-specific prompts (variables).
+    kVAR_NAMES+=( vAWF_BUNDLEID )
+    kHINTS+=( 'Workflow BUNDLE ID' )
+    vAWF_BUNDLEID="$(getReverseDomainName "$vAUTHOR_WEBSITE").${vNAME}"
+    ;;
+  *)
+    die "Unknown package type specified: $pkgType"
+    ;;
+esac
+
+# Fill the default-values array using variable indirection.
+defVals=()
+for vn in "${kVAR_NAMES[@]}"; do
+  defVals+=( "${!vn}" )
+done
+
+# See if we support prefilling the edit buffer for the `read` builtin 
+# - either with a native option in Bash 4+, or, if on OSX, which has Bash 3.x, with an 
+#   AppleScript workaround.
+[[ ${BASH_VERSINFO[0]} -ge 4 || $(uname) == 'Darwin' ]] && editBufferPrefillSupported=1 || editBufferPrefillSupported=0
+
 # --- BEGIN: PROMPT USER
 
 cat <<EOF
 ----------
 You are about to INITIALIZE AN npm PACKAGE AND Git REPO, through a 
-SERIES OF PROMPTS, in the current directory:
+SERIES OF PROMPTS, named
+
+  $(green "$vNAME"; isLegalNpmPackageName "$vNAME" || yellow <<EOF2
+
+  WARNING: Package name '$vNAME' is not allowed in the npm registry.
+           Unless you are creating a PRIVATE package, abort now, change the
+           directory name to a legal name, and try again.
+           Notably, uppercase characters are not allowed, the name must not
+           start with a period or underscore, and may otherwise only contain
+           URL-safe characters - see
+           https://docs.npmjs.com/files/package.json\#name
+EOF2
+)
+
+in the current directory:
 
   $(green "${PWD/#$HOME/~}")
 
-by default named (can be changed later):
-
-  $(green "$vNAME")
-
+- To change the package name, abort now, rename the directory, then reinvoke.
 - Values that require explicit input are marked with (*).
 - Default values are shown in [$(green brackets)]; for Booleans, the default is capitalized.
   - Specify '-' to suppress a default value.
-  - Run \`$kTHIS_NAME -e\` to modify default values and settings.
+  - Run \`$kTHIS_NAME -e\` to modify settings and default values.
 Press ^C anytime to abort.
 ----------
 EOF
 
-# Prompt definitions (hints); add '(*)' to mandatory fields.
-licPrompt=$'LICENSE (SPDX ID; e.g., MIT, GPL-3.0,  LGPL-3.0, BSD-3-Clause, Apache-2.0, MPL-2.0, CDDL-1.0, EPL-1.0; "+" suffix for or-later logic, where supported)\n'
-osPrompt='SUPPORTED OSs, separated with ","; exclude with "!" prefix; blank = no restriction (darwin, freebsd, linux, sunos, win32)'
-hints=(    'PRIVATE (do not publish to npm registry)?'  'Package NAME (*)' 'Short (single-line) DESCRIPTION (*)'  'Prefer GLOBAL installation (for CLI-only projects) (*)?'   '"bin" (CLI) entries (filename(s) only, location ./bin implied; separated with "," - optional, if not global)'  'MAIN MODULE *.js file (filename only, location ./lib implied; optional, if global)'   "$osPrompt"  'KEYWORDS, separated with "," (*)' "$licPrompt"  )
-varnames=( vPRIVATE                                     vNAME              vDESCR                                  vPREFERGLOBAL                                               vBIN_LIST                                                                                                       vMAIN                                                                                 vOS_LIST      vKEYWORD_LIST                     vLIC_SPDX_ID )
-# Fill the default-values array using variable indirection.
-defVals=()
-for vn in "${varnames[@]}"; do
-  defVals+=( "${!vn}" )
-done
-
 pass=0
-while :; do  # prompt loop - it is re-entered, if the user choose to revise at the end of all prompts
+while :; do  # prompt loop - it is re-entered, if the user chooses to revise inputs at the end of all prompts
 
   (( ++pass ))
 
   i=0
-  for (( i = 0; i < "${#varnames[@]}"; i++ )); do
+  for (( i = 0; i < "${#kVAR_NAMES[@]}"; i++ )); do
 
-    vn=${varnames[i]}
-    hint=${hints[i]}
-    defVal=$(expandVars "${defVals[i]}")  # Note: some default values - notably vMAIN, need expansion, because they're derived from previous values.
-    [[ $hint =~ \(\*\) ]] && inputRequired=1 || inputRequired=0
+    vn=${kVAR_NAMES[i]}
+    # For certain package types: skip prompts selectively.
+    contains "$vn" "${varPromptsToSkip[@]}" && continue
+    hint=${kHINTS[i]}
+    defVal=$(expandVars "${defVals[i]}")  # Note: some default values may require expansion, because they're derived from previous values.
+    # See if an *edit-buffer* default value is defined.
+    vn_EditBufDefault="${vn}_EDITBUFDEFAULT"
+    defVal_EditBuf=${!vn_EditBufDefault}
+    [[ $hint == *'(*)'* ]] && inputRequired=1 || inputRequired=0
 
     isBool=0 defValColored=
     if [[ $defVal =~ ^(true|false)$ ]]; then # BOOLEAN property.
@@ -1169,7 +1271,18 @@ while :; do  # prompt loop - it is re-entered, if the user choose to revise at t
     valid=0
     while (( ! valid )); do
       # ---- Prompt the user.
-      read -er -p "${hint}${defValSuffix}: " val
+      extraReadOpts=()
+      if [[ -n $defVal_EditBuf && $editBufferPrefillSupported -eq 1 ]]; then
+        if [[ ${BASH_VERSINFO[0]} -ge 4 ]]; then
+          extraReadOpts=( -i "$defVal_EditBuf" )
+        else # implies OSX (see above): use AppleScript workaround
+          # Launch an AppleScript command in the background that sends the value as simulated keystrokes.
+          # !! AS OF OSX 10.11.1, THE keystroke COMMAND IGNORES "." CHARS. AND DIGITS DUE TO A BUG.
+          (osascript -e 'tell application "System Events" to keystroke "'"${defVal_EditBuf//\"/\\\"}"'"' &)
+        fi
+      fi
+      # Read use input into variable $val.
+      read -er -p "${hint}${defValSuffix}: " "${extraReadOpts[@]}" val
       [[ -n $val ]] && history -s "$val" # add to (session-only) history so that user can use readline features such as arrow-up to recall previous entries
       # ---
       if (( isBool )); then   # BOOLEAN
@@ -1191,6 +1304,11 @@ while :; do  # prompt loop - it is re-entered, if the user choose to revise at t
             [[ -z $val ]] && errMsg+='Type "y" or "n".' || errMsg+="Invalid input: $val"
             ;;
         esac
+        if [[ $vn == 'vPRIVATE' ]]; then # private == do NOT publish to the npm registry.
+          if [[ $val == 'false' ]]; then
+            isLegalNpmPackageName "$vNAME" || die "Not a legal npm-registry package name: $vNAME"
+          fi
+        fi        
       else                     # NON-Boolean
         # Determine effective value by applying/suppressing the default value.
         if [[ $val == '-' ]]; then # '-' indicates that no value should be used at all (instead of the default value)
@@ -1284,9 +1402,8 @@ while :; do  # prompt loop - it is re-entered, if the user choose to revise at t
     # Assign effective value to variable at hand - note the %s, which not only makes the command more robust, but is *required* if $val is *empty*.
     printf -v "$vn" %s "$val"
     defVals[i]=$val  # also reassign to the `defVals` array, in case the user opts to revise values by running through the prompts again
-  done
+  done  # for
 
-  # Expand template values:
   # DERIVE ADDITIONAL VALUES THAT DEPEND ON VALUES THAT THE USER JUST ENTERED OR CONFIRMED.
   for vn in "${delayedExpansionVars[@]}"; do
     printf -v "$vn" '%s' "$(expandVars "${!vn}")"
@@ -1294,12 +1411,12 @@ while :; do  # prompt loop - it is re-entered, if the user choose to revise at t
 
   # REMOVE INAPPLICABLE DEV. DEPENDENCIES based on chosen package type and global defaults.
   devDepsToRemove=()
-  # - 'urchin' is only needed for CLI-only projects,
-  #   'tap' is only needed for lib[+CLI] projects
+  # - 'urchin' is only needed for CLI-only projects
+  # - 'tap' is only needed for lib[+CLI] projects
   if [[ -n $vMAIN ]]; then
-    devDepsToRemove+=( 'urchin' )
+    devDepsToRemove+=( 'urchin' )  # i.e.: leave TAP
   else
-    devDepsToRemove+=( 'tap' )
+    devDepsToRemove+=( 'tap' )     # i.e.: leave URCHIN
   fi
   # - 'marked-man' - for Markdown-to-man-page (ROFF) conversion - is only needed if vMAN_ON is set to true *and*
   #   a CLI exists.
@@ -1344,10 +1461,7 @@ while :; do  # prompt loop - it is re-entered, if the user choose to revise at t
     {
         "url": "$vBUGS_URL"
     }
-  , "scripts":
-    {
-        "test": "make test"
-    }
+  , "scripts":$(toJsonObject '    ' "${vPACKAGE_SCRIPTS[@]}")
   , "keywords":${vKEYWORD_ARRAY}
   , "author": "$vAUTHOR"
   ${vLIC_SPDX_ID:+, ${dq}license${dq}: ${dq}${vLIC_SPDX_ID}${dq}}
@@ -1382,6 +1496,8 @@ EOF
 done
 # --- END: PROMPT USER
 
+# Determine the set of all preexisting files, if any.
+preexistingFiles=$(find . -type f | cut -d '/' -f2- | sort)
 
 # Create package.json
 printf %s "$json" > 'package.json' || die
@@ -1389,29 +1505,63 @@ echoStatus '-- package.json created.'
 
 
 # Note: We copy 'Makefile' from this utility's own *root* package folder, as that is the designated master copy - it is used by this utility package itself - no need to duplicate it in ./templates/.
-[[ -f ./Makefile ]] && echo "(Existing file preserved: $PWD/Makefile)" >&2 || { cp  "$kTEMPLATE_FOLDER/../Makefile" . || die "Failed to copy Makefile."; }
+[[ -f ./Makefile ]] && echo "(Existing file preserved: $PWD/Makefile)" >&2 || { cp "$kTEMPLATE_FOLDER/../Makefile" . || die "Failed to copy Makefile."; }
+
+# Save a list of all files comprising the core template.
+coreTemplateFiles=$(find "$kTEMPLATE_FOLDER" -type f | awk -F "^$kTEMPLATE_FOLDER/" '{ print $2 }' | sort)
 
 # Determine the set of template folders to copy
   # Core templates
 tmplDirs=( "$kTEMPLATE_FOLDER" )
-  # If the package has a JS module, also include the JS templates.
-[[ -n $(json -f package.json main) ]] && tmplDirs+=( "${kTEMPLATE_FOLDER}.js" )
-  # If the package has CLIs, also include the CLI templates.
-[[ -n $(json -f package.json bin) ]] && tmplDirs+=( "${kTEMPLATE_FOLDER}.cli" )
+if [[ -n $pkgType ]]; then
+  tmplDirs+=( "${kTEMPLATE_FOLDER}.${pkgType}" )
+else # no package type specified: this means tha FULL set of prompts, and a package that may contain BOTH a (JS) library file AND a CLI.
+    # If the package (also) has a JS module, also include the (JS) LIBRARY templates.
+  [[ -n $(json -f package.json main) ]] && tmplDirs+=( "${kTEMPLATE_FOLDER}.lib" )
+    # If the package (also) has CLIs, also include the CLI templates.
+  [[ -n $(json -f package.json bin) ]] && tmplDirs+=( "${kTEMPLATE_FOLDER}.cli" )
+fi
 
 for tmplDir in "${tmplDirs[@]}"; do
   # Copy all template files (both true templates that need expansion (e.g., README.tmpl.md) and files to be copied 'as is', (e.g., ./test/*)), without overwriting any existing files (-n).
   # Note: By copying template files BEFORE `npm install`, we avoid npm's warning about a missing read-me.
   #       Copying is recursive, but doesn't replace any existing files.
   (shopt -s dotglob; cp -R -n "$tmplDir"/* .) || { (( isDirEmpty )) && die "Failed to copy template files."; } # !! with -n (no clobbering), if files are skipped during copying, cp apparently invariably sets exit code 1.
+  # Additionally: if a specific template is trying to overwrite core template files, which we *do* want, we must do this 
+  #               *explicitly*, given that `cp -n` above preserved all existing files, including the ones copied by the core template.
+  if [[ $tmplDir != "$kTEMPLATE_FOLDER" ]]; then # this is a NON-core template
+    # Check for overlap in files between this and the core template.
+    thisTemplateFiles=$(find "$tmplDir" -type f | awk -F "^$tmplDir/" '{ print $2 }' | sort)
+    overlappingFiles=$(comm -12 <(printf '%s\n' "$coreTemplateFiles") <(printf '%s\n' "$thisTemplateFiles"))
+    # Loop over overlapping files and copy them, unless they were among the *preexisting* files.
+    while IFS= read -r f; do
+      if ! grep -q -F "$f" <<<"$preexistingFiles"; then
+        cp "$tmplDir/$f" "$f" || die "Failed to copy template file: $tmplDir/$f"
+      fi
+    done <<<"$overlappingFiles"
+  fi
 done
 
-# Rename 'gitignore-mustrename' to '.gitignore'.
+# Determine if a Git repo is already present.
+[[ -d .git ]] && alreadyHasGitRepo=1 || alreadyHasGitRepo=0
+
+# Rename '_gitignore.mustrename' to '.gitignore'.
 # Note that the npm registry doesn't include .gitignore files when installing packages; rather
 # than fiddling with exceptions via .npmignore, we give .gitignore a different name in the template
 # and then rename it on package initialization.
-proxyGitIgnoreFilename='_gitignore-mustrename'
-[[ -f .gitignore ]] && { rm "$proxyGitIgnoreFilename"; echo "(Existing file preserved: $PWD/.gitignore)" >&2; } || { mv "$proxyGitIgnoreFilename" .gitignore || die "Failed to create .gitignore file."; }
+proxyGitIgnoreFilename='_gitignore.mustrename'
+[[ -f .gitignore ]] && { rm "$proxyGitIgnoreFilename"; echo "(Existing .gitignore file preserved.)" >&2; } || { mv "$proxyGitIgnoreFilename" .gitignore || die "Failed to create .gitignore file."; }
+
+# The package-type-specific template files may comprise .git hooks, located in
+# .git/hooks/.
+# Again, a proxy name had to be used, which must now be changed to '.git'.
+# Note that prepopulating .git/hooks/ does NOT cause a problem when later
+# running `git init`.
+proxyGitDirName='_git.mustrename'
+if [[ -d $proxyGitDirName ]]; then
+  # Only install the hooks if there's no repo yet (a blanket warning will be issued below).
+  (( alreadyHasGitRepo )) && { rm -rf "$proxyGitDirName"; } || { mv "$proxyGitDirName" .git || die "Failed to create .git directory."; }
+fi
 
 # Now expand all true template files (-O), without overwriting any existing target files (-n), and delete the template files afterward (-d).
 # Note that our templates contains *command substitutions* such as '$(date +%Y)', so we canNOT use -s to restrict expansions to only *variable* references.
@@ -1420,12 +1570,11 @@ expandTemplate -Ond "$PWD" >/dev/null || die
 echoStatus '-- Template files copied and expanded.'
 
 # Install npm dependencies.
-echoStatus '-- Installing development npm dependencies ...' # since this can take a while, also report the *start* of the operation
+echoStatus '-- Installing development npm dependencies ...' # since this can take a while, report the *start* of the operation
 npm install >/dev/null || die
-# echoStatus '-- Dev npm dependencies installed.'
 
 # Git-related actions
-if [[ -d .git ]]; then
+if (( alreadyHasGitRepo )); then
 
   echoWarning 'WARNING: Existing Git repo found; no Git-related actions taken.'
 
@@ -1469,6 +1618,11 @@ $(green "Package '$vNAME' SUCCESSFULLY INITIALIZED.")
  - For more information, visit $kTHIS_HOMEPAGE
 ---------
 EOF
+
+# Invoke a post-initialization command, if specified.
+if [[ -n $vPOSTINIT_CMD ]]; then
+  "${vPOSTINIT_CMD[@]}"
+fi
 
 ####
 # MAN PAGE MARKDOWN SOURCE
@@ -1524,12 +1678,17 @@ EOF
 Initializes an npm-package project in the current directory and  
 implements a maintenance and release workflow.
     
-    make-pkg [-l] [-f]
+    make-pkg [-l] [-f] [<pkg-type>]
     make-pkg -e
 
     -l            suppresses creation of remote repo on GitHub
     -f            forces running in a non-empty directory
     -e            opens the settings file for editing
+
+    <pkg-type>    [experimental] creates a specific package type:
+                  'lib': JS library (only)
+                  'cli': CLI (only), global installation preferred
+                  'awf': an Alfred 2 workflow
 
 Standard options: `--help`, `--man`, `--version`, `--home`
 
@@ -1546,6 +1705,11 @@ To create a new package project:
 
 On first run you'll be prompted for settings, including creation of a GitHub  
 authorization token.
+
+Not specifying `<pkg-type>` presents the full set of prompts for creating a
+a library and/or CLI npm package.  
+Package types other than 'lib' and 'cli' offer additional, type-specific  
+features.
 
 In addition to initializing package-configuration file 'package.json'  
 through a series of prompts, this utility:

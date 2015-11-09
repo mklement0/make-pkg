@@ -18,8 +18,8 @@ thisFile=$thisDir/$(basename "$0")
 cat <<EOF >&2
 MISSING TESTS
 
-Please add tests to this directory ($thisDir), then delete or rename and
-repurpose this file ($thisFile).
+Please add tests to this directory ("$thisDir"), then either delete or rename and
+repurpose this file ("$thisFile").
 
 - If your package implements a CLI only:
   Tests are expected to be *shell scripts* run by *Urchin*;
@@ -32,7 +32,7 @@ repurpose this file ($thisFile).
   or *.js files - see https://www.npmjs.com/package/tap
   A sample tap test was added.
 
-(To make do without tests, simply remove all content from $thisDir)
+(To make do without tests, simply remove all content from "$thisDir".)
 EOF
 
 exit 2
