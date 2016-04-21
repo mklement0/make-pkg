@@ -14,7 +14,7 @@
 
 kTHIS_HOMEPAGE='https://github.com/mklement0/make-pkg'
 kTHIS_NAME=${BASH_SOURCE##*/} # this script's name
-kTHIS_VERSION='v0.7.2' # NOTE: This assignment is automatically updated by `make version VER=<newVer>` - DO keep the 'v' prefix.
+kTHIS_VERSION='v0.7.1' # NOTE: This assignment is automatically updated by `make version VER=<newVer>` - DO keep the 'v' prefix.
 
 unset CDPATH  # To prevent unexpected `cd` behavior.
 
@@ -835,6 +835,7 @@ mapKeysToValues() {
 }
 
 # Indicates if the specified name is a legal npm package name.
+# Notably, only lowercase characters are allowed.
 # See https://docs.npmjs.com/files/package.json#name
 isLegalNpmPackageName() {
   local name=$1
@@ -1162,7 +1163,8 @@ case $pkgType in
   awf) # Alfred 2 workflow packages
     # Check prerequisites
     [[ $vNAME == *'.awf' ]] || die "An Alfred 2 workflow package name must end in '.awf'; please rename the current directory and try again."
-    # Add the post[un]installation scripts that [un]install the workflow from/in Alfred.
+    # Note: The check for whether the name is legal as an npm package name happens below - and may be skipped, if the package is marked as private.
+    # Specify the post[un]installation scripts that [un]install the workflow from/in Alfred.
     vPACKAGE_SCRIPTS+=( '"postinstall": "./bin/installAwf"' '"postuninstall": "./bin/installAwf -u"' )
     # Define the post-initialization command to run.
     vPOSTINIT_CMD=( ./bin/installAwf --dev-setup )
