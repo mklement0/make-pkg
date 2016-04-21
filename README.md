@@ -196,7 +196,7 @@ Standard options: --help, --man, --version, --home
 
 # License
 
-Copyright (c) 2015 Michael Klement <mklement0@gmail.com> (http://same2u.net), released under the [MIT license](https://spdx.org/licenses/MIT#licenseText).
+Copyright (c) 2015-2016 Michael Klement <mklement0@gmail.com> (http://same2u.net), released under the [MIT license](https://spdx.org/licenses/MIT#licenseText).
 
 ## Acknowledgements
 
@@ -228,6 +228,11 @@ maintaining compatibility is less important. However, larger changes will be ref
 in higher version-number increases.
 
 <!-- RETAIN THIS COMMENT. An entry template is automatically added each time `make version` is called. Fill in changes afterward. -->
+
+* **[v0.7.2](https://github.com/mklement0/make-pkg/compare/v0.7.1...v0.7.2)** (2016-04-21):
+  * [fix] Makefile template: npm registry saved-credentials detection code 
+          updated to account for how newer npm versions save them
+          (`//registry.npmjs.org/:_authToken=`).
 
 * **[v0.7.1](https://github.com/mklement0/make-pkg/compare/v0.7.0...v0.7.1)** (2015-11-08):
   * [doc] Tweaks to the read-me templates.
