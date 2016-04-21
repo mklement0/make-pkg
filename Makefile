@@ -55,7 +55,8 @@ else
 endif
 
 # Commits (with prompt for message) and pushes to the branch of the same name in remote repo 'origin', 
-# but *without* tags.
+# but *without* tags, so as to allow quick pushing of changes without running into problems with tag redefinitions.
+# (Tags are only pushed - forcefully - with `make release`.)
 .PHONY: push
 push: _need-clean-ws-or-no-untracked-files
 	@[[ -z $$(git status --porcelain || echo no) ]] && echo "-- (Nothing to commit.)" || { git commit || exit; echo "-- Committed."; }; \

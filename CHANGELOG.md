@@ -7,8 +7,10 @@ in higher version-number increases.
 
 <!-- RETAIN THIS COMMENT. An entry template is automatically added each time `make version` is called. Fill in changes afterward. -->
 
-* **[v0.7.3-0](https://github.com/mklement0/make-pkg/compare/v0.7.2...v0.7.3-0)** (2016-04-21):
-  * ???
+* **[v0.8.0](https://github.com/mklement0/make-pkg/compare/v0.7.2...v0.8.0)** (2016-04-21):
+  * [enhancement, behavioral change] `make push` no longer tries to push tags
+    to the server, so as to allow quick pushing of changes without running into
+    errors when trying to redefine tags.
 
 * **[v0.7.2](https://github.com/mklement0/make-pkg/compare/v0.7.1...v0.7.2)** (2016-04-21):
   * [fix] Makefile template: npm registry saved-credentials detection code 
