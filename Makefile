@@ -54,13 +54,13 @@ else
 	 if [[ -n $$(json -f package.json main) ]]; then tap ./test; else urchin ./test; fi
 endif
 
-# Commits (with prompt for message) and pushes to the branch of the same name in remote repo 'origin', tags included.
+# Commits (with prompt for message) and pushes to the branch of the same name in remote repo 'origin', 
+# but *without* tags.
 .PHONY: push
 push: _need-clean-ws-or-no-untracked-files
 	@[[ -z $$(git status --porcelain || echo no) ]] && echo "-- (Nothing to commit.)" || { git commit || exit; echo "-- Committed."; }; \
 	 targetBranch=`git symbolic-ref --short HEAD` || exit; \
 	 git push origin "$$targetBranch" || exit; \
-	 git push origin "$$targetBranch" --tags || exit; \
 	 echo "-- Pushed."
 
 
