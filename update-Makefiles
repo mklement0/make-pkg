@@ -26,6 +26,7 @@ dieSyntax() {
 
 # Regex for identifying Makefiles of the same type as this package's.
 kMAKEFILE_ID_REGEX='^update-readme:'
+kCUSTOM_MAKEFILE_REGEX='\[project-specific\]'
 
 # Command-line help.
 if [[ $1 == '--help' || $1 == '-h' ]]; then
@@ -40,8 +41,10 @@ DESCRIPTION
   - they're not in hidden folders
   - they're not inside 'node_module' folders
   - they match a regex that identifies a Makefile as being
-    an older version of this package's:
+    an (older) copy of this package's:
        $kMAKEFILE_ID_REGEX
+    while not also being marked as containing project-specific modifications
+       $kCUSTOM_MAKEFILE_REGEX
 
   Note that no attempt is made to compare timestamps.
 
@@ -64,7 +67,25 @@ echo "== Looking for Makefiles to update, relative to ${PWD/#$HOME/~}..."
 #  - the second time, if confirmed, to actually perform the copy commands.
 cmdPrefix=( 'echo' '' )
 for i in 0 1; do
-  result=$(find .. ! -path '../'"$kTHIS_DIR_NAME"'/*' ! -path '*/node_modules/*' ! -path '*/.*'  -name 'Makefile' -exec egrep -l '^version:' {} \; | xargs -I % ${cmdPrefix[i]} cp -p ./Makefile %) || die
+  if (( i == 0 )); then
+    # Read all candidate files into array ${files[@]}.
+    IFS=$'\n' read -r -d '' -a files < <(find .. ! -path '../'"$kTHIS_DIR_NAME"'/*' ! -path '*/node_modules/*' ! -path '*/.*'  -name 'Makefile' -exec egrep -l "$kMAKEFILE_ID_REGEX" {} \;)
+    # Read those we must exclude - those with project-specific modifications - into ${filesToExclude[@]}
+    IFS=$'\n' read -r -d '' -a filesToExclude < <(egrep -l "$kCUSTOM_MAKEFILE_REGEX" "${files[@]}")
+    if [[ -n $filesToExclude ]]; then
+      cat <<EOF
+===
+WARNING: The following Makefiles are marked as having CUSTOM MODIFICATIONS 
+         and will NOT be replaced - UPDATE THEM MANUALLY:
+
+        ${filesToExclude[@]}
+===    
+EOF
+      # Remove the files to exclude from ${files[@]}
+      IFS=$'\n' read -r -d '' -a files < <(printf '%s\n' "${files[@]}" | grep -Fvx "$(printf '%s\n' "${filesToExclude[@]}")" )
+    fi
+  fi
+  result=$(printf '%s\n' "${files[@]}" | xargs -I % ${cmdPrefix[i]} cp -p ./Makefile %) || die
   if (( i == 0 )); then
     [[ -n $result ]] || { die "No matching Makefiles found."; }
     echo "$result"
